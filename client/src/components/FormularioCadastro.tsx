@@ -139,7 +139,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
             onChange={(e) => setTelefone(maskTelefone(e.target.value))}
             placeholder="(XX) XXXXX-XXXX"
             className="text-sm"
-            maxLength={14}
+            maxLength={15}
           />
         </div>
 

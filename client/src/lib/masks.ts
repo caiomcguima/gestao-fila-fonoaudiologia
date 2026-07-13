@@ -29,7 +29,7 @@ export function maskTelefone(value: string): string {
     .replace(/\D/g, '')
     .replace(/^(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d)/, '$1-$2')
-    .slice(0, 14);
+    .slice(0, 15);
 }
 
 export function unmaskValue(value: string): string {
