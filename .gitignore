@@ -109,5 +109,7 @@ temp/
 .webdev/
 .project-config.json
 
-# Local agent/editor state
-.claude/settings.local.json
+# Local agent/editor state e skills (ferramenta local, fora do deploy)
+.claude/
+.agents/
+skills-lock.json
