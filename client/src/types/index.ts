@@ -1,4 +1,4 @@
-export type StatusPaciente = 'Aguardando' | 'Em Atendimento' | 'Cancelado' | 'Perdeu a Vaga' | 'Alta';
+export type StatusPaciente = 'Aguardando' | 'Em Atendimento' | 'Desistência' | 'Perdeu a Vaga' | 'Alta';
 
 export interface Paciente {
   id: string;

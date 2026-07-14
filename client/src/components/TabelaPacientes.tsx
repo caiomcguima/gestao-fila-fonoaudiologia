@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 const STATUS_COLORS: Record<StatusPaciente, string> = {
   'Aguardando': 'bg-blue-100 text-blue-800',
   'Em Atendimento': 'bg-yellow-100 text-yellow-800',
-  'Cancelado': 'bg-red-100 text-red-800',
+  'Desistência': 'bg-red-100 text-red-800',
   'Perdeu a Vaga': 'bg-red-100 text-red-800',
   'Alta': 'bg-green-100 text-green-800',
 };
@@ -128,7 +128,7 @@ export function TabelaPacientes({
               <SelectItem value="Todos">Todos</SelectItem>
               <SelectItem value="Aguardando">Aguardando</SelectItem>
               <SelectItem value="Em Atendimento">Em Atendimento</SelectItem>
-              <SelectItem value="Cancelado">Cancelado</SelectItem>
+              <SelectItem value="Desistência">Desistência</SelectItem>
               <SelectItem value="Perdeu a Vaga">Perdeu a Vaga</SelectItem>
               <SelectItem value="Alta">Alta</SelectItem>
             </SelectContent>
@@ -163,6 +163,7 @@ export function TabelaPacientes({
                 <TableHead className="text-sm font-semibold">CNS</TableHead>
                 <TableHead className="text-sm font-semibold">Status</TableHead>
                 <TableHead className="text-sm font-semibold">Profissional</TableHead>
+                <TableHead className="text-sm font-semibold">Diagnóstico</TableHead>
                 <TableHead className="text-sm font-semibold text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -197,7 +198,7 @@ export function TabelaPacientes({
                           <SelectContent>
                             <SelectItem value="Aguardando">Aguardando</SelectItem>
                             <SelectItem value="Em Atendimento">Em Atendimento</SelectItem>
-                            <SelectItem value="Cancelado">Cancelado</SelectItem>
+                            <SelectItem value="Desistência">Desistência</SelectItem>
                             <SelectItem value="Perdeu a Vaga">Perdeu a Vaga</SelectItem>
                             <SelectItem value="Alta">Alta</SelectItem>
                           </SelectContent>
@@ -214,6 +215,13 @@ export function TabelaPacientes({
                     <TableCell className="text-sm">
                       {paciente.profissional ? (
                         <span className="text-xs">{paciente.profissional}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[200px] truncate">
+                      {paciente.diagnostico ? (
+                        <span className="text-xs" title={paciente.diagnostico}>{paciente.diagnostico}</span>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
