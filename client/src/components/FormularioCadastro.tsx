@@ -229,7 +229,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
             <SelectContent>
               <SelectItem value="Aguardando">Aguardando</SelectItem>
               <SelectItem value="Em Atendimento">Em Atendimento</SelectItem>
-              <SelectItem value="Cancelado">Cancelado</SelectItem>
+              <SelectItem value="Desistência">Desistência</SelectItem>
               <SelectItem value="Perdeu a Vaga">Perdeu a Vaga</SelectItem>
               <SelectItem value="Alta">Alta</SelectItem>
             </SelectContent>
