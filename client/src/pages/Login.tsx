@@ -30,21 +30,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary to-primary/80 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 [background-image:radial-gradient(60rem_30rem_at_50%_-10%,rgba(0,91,170,0.18),transparent)]">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-card rounded-3xl border border-border p-8 sm:p-10 shadow-[0_1px_2px_rgba(18,48,77,0.04),0_24px_48px_-24px_rgba(18,48,77,0.25)]">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">GESTÃO DE FILA</h1>
-            <p className="text-sm text-muted-foreground mt-2">Fonoaudiologia</p>
+            <h1 className="text-foreground">Fila de Fonoaudiologia</h1>
+            <p className="text-muted-foreground mt-2">Digite a senha da equipe para entrar.</p>
           </div>
 
           {/* Formulário */}
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Senha de Acesso
+              <Label htmlFor="password" className="font-bold">
+                Senha de acesso
               </Label>
               <div className="relative">
                 <Input
@@ -53,14 +53,15 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite a senha"
-                  className="text-sm pr-10"
+                  className="h-12 rounded-xl pr-12"
                   disabled={isLoading}
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 size-10 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   disabled={isLoading}
                 >
                   {showPassword ? (
@@ -74,7 +75,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+              className="w-full h-12 rounded-full font-bold text-base"
               disabled={isLoading}
             >
               {isLoading ? 'Autenticando...' : 'Entrar'}
@@ -84,13 +85,13 @@ export default function Login() {
           {/* Rodapé */}
           <div className="mt-8 pt-6 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
-              Sistema de Gestão de Fila de Fonoaudiologia - SUS
+              Gestão da fila de fonoaudiologia do SUS
             </p>
           </div>
         </div>
 
         {/* Informação */}
-        <div className="mt-6 text-center text-white/80 text-sm">
+        <div className="mt-6 text-center text-muted-foreground text-sm">
           <p>Acesso restrito a usuários autorizados</p>
         </div>
       </div>

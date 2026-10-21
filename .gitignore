@@ -100,6 +100,11 @@ jspm_packages/
 tmp/
 temp/
 
+# Dados exportados (podem conter dados de pacientes)
+*.csv
+*.xlsx
+*.xls
+
 # Database
 *.db
 *.sqlite

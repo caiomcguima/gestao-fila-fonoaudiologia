@@ -1,4 +1,21 @@
-export type StatusPaciente = 'Aguardando' | 'Em Atendimento' | 'Desistência' | 'Perdeu a Vaga' | 'Alta';
+// Fonte única dos nomes de status. A ordem aqui é a ordem de exibição.
+export const STATUS_LIST = [
+  "Aguardando",
+  "Em Atendimento",
+  "Desistência",
+  "Perdeu a Vaga",
+  "Alta",
+  "Óbito",
+  "Mudou-se",
+] as const;
+
+export type StatusPaciente = (typeof STATUS_LIST)[number];
+
+// Status que aparecem na fila principal
+export const STATUS_FILA_ATIVA: readonly StatusPaciente[] = [
+  "Aguardando",
+  "Em Atendimento",
+];
 
 export interface Paciente {
   id: string;
@@ -12,6 +29,7 @@ export interface Paciente {
   status: StatusPaciente;
   profissional?: string; // Nome da fonoaudióloga (quando status = "Em Atendimento")
   diagnostico?: string; // Máximo 180 caracteres
+  created_at?: string; // Preenchido pelo banco
 }
 
 export interface FiltrosBusca {
