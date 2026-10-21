@@ -1,7 +1,7 @@
 // Fonte única dos nomes de status. A ordem aqui é a ordem de exibição.
 export const STATUS_LIST = [
-  "Aguardando",
   "Em Atendimento",
+  "Aguardando",
   "Desistência",
   "Perdeu a Vaga",
   "Alta",
@@ -10,12 +10,6 @@ export const STATUS_LIST = [
 ] as const;
 
 export type StatusPaciente = (typeof STATUS_LIST)[number];
-
-// Status que aparecem na fila principal
-export const STATUS_FILA_ATIVA: readonly StatusPaciente[] = [
-  "Aguardando",
-  "Em Atendimento",
-];
 
 export interface Paciente {
   id: string;
