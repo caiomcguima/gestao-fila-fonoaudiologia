@@ -7,6 +7,11 @@ import React, {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Paciente } from "@/types";
 import { createSupabaseClient } from "@/lib/supabase";
+import { toast } from "sonner";
+
+// Sem isso a falha ficava silenciosa: a tela mudava só neste navegador e o banco não
+const avisarFalha = () =>
+  toast.error("Não foi possível salvar no servidor. A alteração ficou só neste navegador.");
 
 const STORAGE_KEY = "gestao_fila_pacientes";
 
@@ -131,6 +136,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         // O estado é atualizado pela assinatura de tempo real (INSERT)
       } catch (error) {
         console.error("Erro ao adicionar paciente no Supabase:", error);
+        avisarFalha();
         const novo: Paciente = {
           ...paciente,
           id: `${Date.now()}-${Math.random()}`,
@@ -157,6 +163,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         // O estado é atualizado pela assinatura de tempo real (UPDATE)
       } catch (error) {
         console.error("Erro ao atualizar paciente no Supabase:", error);
+        avisarFalha();
         setPacientes((prev) =>
           prev.map((p) => (p.id === id ? { ...p, ...dados } : p))
         );
@@ -179,6 +186,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         // O estado é atualizado pela assinatura de tempo real (DELETE)
       } catch (error) {
         console.error("Erro ao deletar paciente no Supabase:", error);
+        avisarFalha();
         setPacientes((prev) => prev.filter((p) => p.id !== id));
       }
     } else {

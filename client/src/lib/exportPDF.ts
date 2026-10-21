@@ -1,143 +1,119 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { Paciente } from '@/types';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Paciente } from "@/types";
 
-export async function exportarParaPDF(pacientes: Paciente[], nomeArquivo: string = 'fila_fonoaudiologia.pdf') {
-  try {
-    // Criar elemento HTML temporário com a tabela
-    const element = document.createElement('div');
-    element.style.padding = '20px';
-    element.style.backgroundColor = '#ffffff';
-    element.style.fontFamily = 'Arial, sans-serif';
-    element.style.fontSize = '10px';
+export interface LinhaPDF {
+  paciente: Paciente;
+  numero?: number; // Nº/posição; vazio quando não se aplica
+}
 
-    // Header
-    const header = document.createElement('h1');
-    header.textContent = 'GESTÃO DE FILA - FONOAUDIOLOGIA';
-    header.style.textAlign = 'center';
-    header.style.fontSize = '16px';
-    header.style.marginBottom = '20px';
-    header.style.color = '#005BAA';
-    element.appendChild(header);
+// A4 paisagem, em mm
+const MARGEM = 10;
+const FONTE_CORPO = 10; // pt (o PDF antigo saía com ~5pt efetivos)
+const TOPO_TABELA = 24; // espaço para o título repetido em cada página
 
-    // Data de geração
-    const dataGeracao = document.createElement('p');
-    dataGeracao.textContent = `Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`;
-    dataGeracao.style.textAlign = 'right';
-    dataGeracao.style.fontSize = '9px';
-    dataGeracao.style.marginBottom = '10px';
-    dataGeracao.style.color = '#666666';
-    element.appendChild(dataGeracao);
+type Coluna = {
+  header: string;
+  valor: (l: LinhaPDF) => string;
+  largura?: number;
+};
 
-    // Tabela
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    table.style.marginTop = '10px';
+function colunasVisiveis(linhas: LinhaPDF[]): Coluna[] {
+  const variosStatus = new Set(linhas.map(l => l.paciente.status)).size > 1;
+  const temProfissional = linhas.some(l => l.paciente.profissional);
+  const colunas: (Coluna | false)[] = [
+    {
+      header: "Nº",
+      valor: l => (l.numero ? String(l.numero) : "-"),
+      largura: 12,
+    },
+    { header: "Nome", valor: l => l.paciente.nome },
+    { header: "Telefone", valor: l => l.paciente.telefone, largura: 30 },
+    { header: "Data", valor: l => l.paciente.data, largura: 22 },
+    { header: "UBS", valor: l => l.paciente.ubs },
+    { header: "CPF", valor: l => l.paciente.cpf, largura: 29 },
+    { header: "CNS", valor: l => l.paciente.cns, largura: 39 },
+    variosStatus && {
+      header: "Status",
+      valor: l => l.paciente.status,
+      largura: 27,
+    },
+    temProfissional && {
+      header: "Profissional",
+      valor: l => l.paciente.profissional || "-",
+    },
+    { header: "Diagnóstico", valor: l => l.paciente.diagnostico || "-" },
+  ];
+  return colunas.filter((c): c is Coluna => Boolean(c));
+}
 
-    // Header da tabela
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    headerRow.style.backgroundColor = '#005BAA';
-    headerRow.style.color = '#ffffff';
+export function gerarPDF(linhas: LinhaPDF[], titulo: string): jsPDF {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const largura = doc.internal.pageSize.getWidth();
+  const altura = doc.internal.pageSize.getHeight();
+  const geradoEm = new Date().toLocaleString("pt-BR");
+  const colunas = colunasVisiveis(linhas);
 
-    const headers = ['#', 'Nome', 'Telefone', 'Data', 'UBS', 'CPF', 'CNS', 'Status', 'Profissional', 'Diagnóstico'];
-    headers.forEach((headerText) => {
-      const th = document.createElement('th');
-      th.textContent = headerText;
-      th.style.padding = '8px';
-      th.style.textAlign = 'left';
-      th.style.fontWeight = 'bold';
-      th.style.fontSize = '9px';
-      th.style.border = '1px solid #cccccc';
-      headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Body da tabela
-    const tbody = document.createElement('tbody');
-    pacientes.forEach((paciente, index) => {
-      const row = document.createElement('tr');
-      row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
-
-
-
-      const cellsData = [
-        (index + 1).toString(),
-        paciente.nome,
-        paciente.telefone,
-        paciente.data,
-        paciente.ubs,
-        paciente.cpf,
-        paciente.cns,
-        paciente.status,
-        paciente.profissional || '-',
-        paciente.diagnostico || '-',
-      ];
-
-      cellsData.forEach((cellText) => {
-        const td = document.createElement('td');
-        td.textContent = cellText;
-        td.style.padding = '6px';
-        td.style.fontSize = '8px';
-        td.style.border = '1px solid #cccccc';
-        row.appendChild(td);
+  autoTable(doc, {
+    head: [colunas.map(c => c.header)],
+    body: linhas.map(l => colunas.map(c => c.valor(l))),
+    margin: { top: TOPO_TABELA, left: MARGEM, right: MARGEM, bottom: 14 },
+    tableWidth: "auto",
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: FONTE_CORPO,
+      textColor: 0,
+      fillColor: 255,
+      lineColor: 0,
+      lineWidth: 0.2,
+      cellPadding: 1.5,
+      overflow: "linebreak",
+      valign: "top",
+    },
+    headStyles: {
+      fontStyle: "bold",
+      fillColor: 230,
+      textColor: 0,
+      lineWidth: 0.4,
+    },
+    columnStyles: Object.fromEntries(
+      colunas.map((c, i) => [i, c.largura ? { cellWidth: c.largura } : {}])
+    ),
+    didDrawPage: () => {
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.text(`Fila de Fonoaudiologia — ${titulo}`, MARGEM, 15);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(`${linhas.length} paciente(s)`, largura - MARGEM, 15, {
+        align: "right",
       });
+      doc.setFontSize(9);
+      doc.text(`Gerado em ${geradoEm}`, MARGEM, altura - 6);
+      doc.text(
+        `Página ${doc.getNumberOfPages()} de {total}`,
+        largura - MARGEM,
+        altura - 6,
+        {
+          align: "right",
+        }
+      );
+    },
+  });
 
-      tbody.appendChild(row);
-    });
-    table.appendChild(tbody);
-    element.appendChild(table);
+  doc.putTotalPages("{total}");
+  return doc;
+}
 
-    // Resumo
-    const resumo = document.createElement('p');
-    resumo.textContent = `Total de pacientes: ${pacientes.length}`;
-    resumo.style.marginTop = '15px';
-    resumo.style.fontSize = '9px';
-    resumo.style.color = '#666666';
-    element.appendChild(resumo);
-
-    // Adicionar ao DOM temporariamente
-    document.body.appendChild(element);
-
-    // Converter para canvas
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    });
-
-    // Remover do DOM
-    document.body.removeChild(element);
-
-    // Criar PDF
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4',
-    });
-
-    const imgWidth = 297; // A4 landscape width em mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= 210; // A4 landscape height em mm
-
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= 210;
-    }
-
-    // Fazer download
-    pdf.save(nomeArquivo);
-  } catch (error) {
-    console.error('Erro ao exportar PDF:', error);
-    throw error;
-  }
+export async function exportarParaPDF(linhas: LinhaPDF[], titulo: string) {
+  const slug = titulo
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  gerarPDF(linhas, titulo).save(`fila_fonoaudiologia_${slug}.pdf`);
 }
