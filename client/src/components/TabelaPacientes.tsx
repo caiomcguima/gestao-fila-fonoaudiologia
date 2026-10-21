@@ -1,10 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  Paciente,
-  StatusPaciente,
-  STATUS_FILA_ATIVA,
-  STATUS_LIST,
-} from "@/types";
+import { Paciente, StatusPaciente, STATUS_LIST } from "@/types";
 import {
   contarPorStatus,
   numerarPorStatus,
@@ -63,13 +58,12 @@ const corStatus = (status: string) =>
   STATUS_COLORS[status as StatusPaciente] ??
   "bg-muted text-foreground ring-border";
 
-type Filtro = "Fila" | "Todos" | StatusPaciente;
+type Filtro = "Todos" | StatusPaciente;
 type CampoBusca = "nome" | "cpf" | "cns" | "dataNascimento";
 
-const TITULO_FILTRO: Record<"Fila" | "Todos", string> = {
-  Fila: "Fila ativa",
-  Todos: "Todos os status",
-};
+// Colunas fixas ao rolar para os lados: Nº (5rem) e Nome logo depois
+const FIXA_NUMERO = "sticky left-0 z-[1] w-20 min-w-20";
+const FIXA_NOME = "sticky left-20 z-[1] shadow-[1px_0_0_var(--border)]";
 
 interface TabelaPacientesProps {
   pacientes: Paciente[];
@@ -87,44 +81,35 @@ export function TabelaPacientes({
   onEditarPaciente,
 }: TabelaPacientesProps) {
   const [busca, setBusca] = useState("");
-  const [filtro, setFiltro] = useState<Filtro>("Fila");
+  const [filtro, setFiltro] = useState<Filtro>(STATUS_LIST[0]);
   const [buscaPorCampo, setBuscaPorCampo] = useState<CampoBusca>("nome");
   const [detalhePaciente, setDetalhePaciente] = useState<Paciente | null>(null);
   const [pacienteExcluir, setPacienteExcluir] = useState<Paciente | null>(null);
 
   // Nº calculado sobre a lista inteira, então a busca por texto não altera a posição de ninguém
   const numeros = useMemo(() => numerarPorStatus(pacientes), [pacientes]);
+  // Em "Todos", numeração corrida de 1 a N na ordem de exibição
+  const numerosTodos = useMemo(
+    () => new Map(ordenarParaExibicao(pacientes).map((p, i) => [p.id, i + 1])),
+    [pacientes]
+  );
   const contagem = useMemo(() => contarPorStatus(pacientes), [pacientes]);
 
   const pacientesFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const lista = pacientes.filter(p => {
-      if (filtro === "Fila" && !STATUS_FILA_ATIVA.includes(p.status))
-        return false;
-      if (filtro !== "Fila" && filtro !== "Todos" && p.status !== filtro)
-        return false;
+      if (filtro !== "Todos" && p.status !== filtro) return false;
       return !termo || (p[buscaPorCampo] ?? "").toLowerCase().includes(termo);
     });
     return ordenarParaExibicao(lista);
   }, [pacientes, busca, filtro, buscaPorCampo]);
 
-  const filtroUmStatus = filtro !== "Fila" && filtro !== "Todos";
-  // Posição na fila só existe para "Aguardando"; filtrando um status, cada lista tem seu próprio Nº
   const numeroDe = (p: Paciente) =>
-    filtroUmStatus || p.status === "Aguardando" ? numeros.get(p.id) : undefined;
-  const rotuloNumero =
-    filtroUmStatus && filtro !== "Aguardando" ? "Nº" : "Posição";
-  const tituloAtual = filtroUmStatus ? filtro : TITULO_FILTRO[filtro];
+    (filtro === "Todos" ? numerosTodos : numeros).get(p.id);
+  const rotuloNumero = filtro === "Aguardando" ? "Posição" : "Nº";
+  const tituloAtual = filtro === "Todos" ? "Todos os status" : filtro;
 
   const opcoesFiltro: { valor: Filtro; rotulo: string; total: number }[] = [
-    {
-      valor: "Fila",
-      rotulo: "Fila ativa",
-      total: STATUS_FILA_ATIVA.reduce(
-        (s, st) => s + (contagem.get(st) ?? 0),
-        0
-      ),
-    },
     ...STATUS_LIST.map(s => ({
       valor: s as Filtro,
       rotulo: s,
@@ -160,9 +145,7 @@ export function TabelaPacientes({
             {tituloAtual}
           </h2>
           <p className="text-muted-foreground mt-1">
-            {filtro === "Fila"
-              ? "Aguardando em ordem de entrada, seguidos de quem está em atendimento."
-              : "Numeração por ordem de entrada (campo Data)."}
+            Numeração por ordem de entrada (campo Data).
           </p>
         </div>
         <Button onClick={exportar} className="rounded-full h-11 px-5 gap-2">
@@ -260,7 +243,7 @@ export function TabelaPacientes({
       ) : (
         <>
           {/* Celular: cartões */}
-          <ul className="md:hidden space-y-3">
+          <ul className="md:hidden space-y-3 max-h-[70vh] overflow-y-auto overscroll-contain pr-1">
             {pacientesFiltrados.map(p => (
               <CartaoPaciente
                 key={p.id}
@@ -273,14 +256,19 @@ export function TabelaPacientes({
           </ul>
 
           {/* Computador: tabela */}
-          <div className="hidden md:block rounded-3xl border border-border bg-card overflow-x-auto shadow-[0_1px_2px_rgba(18,48,77,0.04),0_8px_24px_-12px_rgba(18,48,77,0.12)]">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-                  <TableHead className="w-20 text-center">
+          {/* Altura limitada: as barras de rolagem ficam sempre à vista, cabeçalho e Nº/Nome fixos */}
+          <div className="hidden md:block rounded-3xl border border-border bg-card overflow-hidden shadow-[0_1px_2px_rgba(18,48,77,0.04),0_8px_24px_-12px_rgba(18,48,77,0.12)]">
+            <Table containerClassName="max-h-[70vh] overflow-auto overscroll-contain">
+              <TableHeader className="sticky top-0 z-[2] bg-secondary">
+                <TableRow className="hover:bg-secondary">
+                  <TableHead
+                    className={cn(FIXA_NUMERO, "bg-secondary text-center")}
+                  >
                     {rotuloNumero}
                   </TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead className={cn(FIXA_NOME, "bg-secondary")}>
+                    Nome
+                  </TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>UBS</TableHead>
@@ -294,14 +282,23 @@ export function TabelaPacientes({
               </TableHeader>
               <TableBody>
                 {pacientesFiltrados.map(p => (
-                  <TableRow key={p.id} className="text-[0.95rem]">
-                    <TableCell className="text-center">
-                      <Numero
-                        numero={numeroDe(p)}
-                        destaque={p.status === "Aguardando"}
-                      />
+                  <TableRow key={p.id} className="group text-[0.95rem]">
+                    <TableCell
+                      className={cn(
+                        FIXA_NUMERO,
+                        "bg-card group-hover:bg-muted text-center"
+                      )}
+                    >
+                      <Numero numero={numeroDe(p)} />
                     </TableCell>
-                    <TableCell className="font-bold">{p.nome}</TableCell>
+                    <TableCell
+                      className={cn(
+                        FIXA_NOME,
+                        "bg-card group-hover:bg-muted font-bold"
+                      )}
+                    >
+                      {p.nome}
+                    </TableCell>
                     <TableCell>{p.telefone}</TableCell>
                     <TableCell>{p.data}</TableCell>
                     <TableCell>{p.ubs}</TableCell>
@@ -386,17 +383,10 @@ function Vazio() {
   );
 }
 
-function Numero({ numero, destaque }: { numero?: number; destaque: boolean }) {
+function Numero({ numero }: { numero?: number }) {
   if (!numero) return <Vazio />;
   return (
-    <span
-      className={cn(
-        "inline-grid place-items-center min-w-10 h-10 px-2 rounded-full font-bold",
-        destaque
-          ? "bg-primary text-primary-foreground text-lg"
-          : "bg-secondary text-foreground"
-      )}
-    >
+    <span className="inline-grid place-items-center min-w-10 h-10 px-2 rounded-full font-bold bg-secondary text-foreground">
       {numero}
     </span>
   );
@@ -485,7 +475,7 @@ function CartaoPaciente({
   return (
     <li className="rounded-3xl border border-border bg-card p-4">
       <div className="flex items-start gap-3">
-        <Numero numero={numero} destaque={paciente.status === "Aguardando"} />
+        <Numero numero={numero} />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-lg leading-snug">{paciente.nome}</p>
           <p className="text-muted-foreground">
