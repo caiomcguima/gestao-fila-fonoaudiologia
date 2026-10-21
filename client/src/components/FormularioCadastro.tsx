@@ -1,38 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Paciente, StatusPaciente, STATUS_LIST } from '@/types';
-import { maskCPF, maskCNS, maskData, maskTelefone } from '@/lib/masks';
-import { useEdit } from '@/contexts/EditContext';
-import { toast } from 'sonner';
-
-const PROFISSIONAIS = [
-  'Tarciana Aparecida Rodrigues do Vale',
-  'Tassia Silveira Torresia Machado',
-];
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
+import { maskCPF, maskCNS, maskData, maskTelefone } from "@/lib/masks";
+import { useEdit } from "@/contexts/EditContext";
+import { toast } from "sonner";
 
 interface FormularioCadastroProps {
-  onAdicionarPaciente: (paciente: Omit<Paciente, 'id'>) => void;
-  onAtualizarPaciente?: (id: string, paciente: Omit<Paciente, 'id'>) => void;
+  onAdicionarPaciente: (paciente: Omit<Paciente, "id">) => void;
+  onAtualizarPaciente?: (id: string, paciente: Omit<Paciente, "id">) => void;
 }
 
-export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }: FormularioCadastroProps) {
+export function FormularioCadastro({
+  onAdicionarPaciente,
+  onAtualizarPaciente,
+}: FormularioCadastroProps) {
   const { pacienteEmEdicao, finalizarEdicao } = useEdit();
-  
-  const [nome, setNome] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [data, setData] = useState('');
-  const [dataNascimento, setDataNascimento] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [cns, setCns] = useState('');
-  const [ubs, setUbs] = useState('');
-  const [status, setStatus] = useState<StatusPaciente>('Aguardando');
-  const [profissional, setProfissional] = useState('');
-  const [diagnostico, setDiagnostico] = useState('');
+
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [data, setData] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [cns, setCns] = useState("");
+  const [ubs, setUbs] = useState("");
+  const [status, setStatus] = useState<StatusPaciente>("Aguardando");
+  const [profissional, setProfissional] = useState("");
+  const [diagnostico, setDiagnostico] = useState("");
   const [openProfissional, setOpenProfissional] = useState(false);
   const [openDiagnostico, setOpenDiagnostico] = useState(false);
   const [modoEdicao, setModoEdicao] = useState(false);
@@ -47,31 +57,31 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
       setCns(pacienteEmEdicao.cns);
       setUbs(pacienteEmEdicao.ubs);
       setStatus(pacienteEmEdicao.status);
-      setProfissional(pacienteEmEdicao.profissional || '');
-      setDiagnostico(pacienteEmEdicao.diagnostico || '');
+      setProfissional(pacienteEmEdicao.profissional || "");
+      setDiagnostico(pacienteEmEdicao.diagnostico || "");
       setModoEdicao(true);
     }
   }, [pacienteEmEdicao]);
 
   const validarFormulario = (): boolean => {
     if (diagnostico.length > 180) {
-      toast.error('Diagnóstico não pode exceder 180 caracteres');
+      toast.error("Diagnóstico não pode exceder 180 caracteres");
       return false;
     }
     return true;
   };
 
   const limparFormulario = () => {
-    setNome('');
-    setTelefone('');
-    setData('');
-    setDataNascimento('');
-    setCpf('');
-    setCns('');
-    setUbs('');
-    setStatus('Aguardando');
-    setProfissional('');
-    setDiagnostico('');
+    setNome("");
+    setTelefone("");
+    setData("");
+    setDataNascimento("");
+    setCpf("");
+    setCns("");
+    setUbs("");
+    setStatus("Aguardando");
+    setProfissional("");
+    setDiagnostico("");
     setModoEdicao(false);
     finalizarEdicao();
   };
@@ -79,7 +89,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
   const handleGravar = () => {
     if (!validarFormulario()) return;
 
-    const novoPaciente: Omit<Paciente, 'id'> = {
+    const novoPaciente: Omit<Paciente, "id"> = {
       nome,
       telefone,
       data,
@@ -88,16 +98,18 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
       cns,
       ubs,
       status,
-      profissional: status === 'Em Atendimento' ? profissional : undefined,
+      // Mantém quem atendeu mesmo após Alta/Desistência etc.; só quem ainda aguarda fica sem profissional
+      profissional:
+        status !== "Aguardando" ? profissional || undefined : undefined,
       diagnostico: diagnostico || undefined,
     };
 
     if (modoEdicao && pacienteEmEdicao && onAtualizarPaciente) {
       onAtualizarPaciente(pacienteEmEdicao.id, novoPaciente);
-      toast.success('Paciente atualizado com sucesso!');
+      toast.success("Paciente atualizado com sucesso!");
     } else {
       onAdicionarPaciente(novoPaciente);
-      toast.success('Paciente adicionado com sucesso!');
+      toast.success("Paciente adicionado com sucesso!");
     }
 
     limparFormulario();
@@ -111,14 +123,18 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
     <section
       aria-labelledby="titulo-formulario"
       className={`rounded-3xl border bg-card p-5 sm:p-7 shadow-[0_1px_2px_rgba(18,48,77,0.04),0_8px_24px_-12px_rgba(18,48,77,0.12)] ${
-        modoEdicao ? 'border-primary ring-4 ring-primary/10' : 'border-border'
+        modoEdicao ? "border-primary ring-4 ring-primary/10" : "border-border"
       }`}
     >
       <h2 id="titulo-formulario" className="text-foreground mb-1">
-        {modoEdicao ? `Editando ${pacienteEmEdicao?.nome || 'paciente'}` : 'Adicionar paciente'}
+        {modoEdicao
+          ? `Editando ${pacienteEmEdicao?.nome || "paciente"}`
+          : "Adicionar paciente"}
       </h2>
       <p className="text-muted-foreground mb-6">
-        {modoEdicao ? 'Altere os campos e salve.' : 'Preencha os dados para colocar o paciente na fila.'}
+        {modoEdicao
+          ? "Altere os campos e salve."
+          : "Preencha os dados para colocar o paciente na fila."}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -130,7 +146,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="nome"
             value={nome}
-            onChange={(e) => setNome(e.target.value)}
+            onChange={e => setNome(e.target.value)}
             placeholder="Nome do paciente"
             className="h-11 rounded-xl"
           />
@@ -144,7 +160,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="telefone"
             value={telefone}
-            onChange={(e) => setTelefone(maskTelefone(e.target.value))}
+            onChange={e => setTelefone(maskTelefone(e.target.value))}
             placeholder="(XX) XXXXX-XXXX"
             className="h-11 rounded-xl"
             maxLength={15}
@@ -159,7 +175,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="data"
             value={data}
-            onChange={(e) => setData(maskData(e.target.value))}
+            onChange={e => setData(maskData(e.target.value))}
             placeholder="DD/MM/YYYY"
             className="h-11 rounded-xl"
             maxLength={10}
@@ -174,7 +190,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="dataNascimento"
             value={dataNascimento}
-            onChange={(e) => setDataNascimento(maskData(e.target.value))}
+            onChange={e => setDataNascimento(maskData(e.target.value))}
             placeholder="DD/MM/YYYY"
             className="h-11 rounded-xl"
             maxLength={10}
@@ -189,7 +205,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="cpf"
             value={cpf}
-            onChange={(e) => setCpf(maskCPF(e.target.value))}
+            onChange={e => setCpf(maskCPF(e.target.value))}
             placeholder="XXX.XXX.XXX-XX"
             className="h-11 rounded-xl"
             maxLength={14}
@@ -204,7 +220,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="cns"
             value={cns}
-            onChange={(e) => setCns(maskCNS(e.target.value))}
+            onChange={e => setCns(maskCNS(e.target.value))}
             placeholder="XXXX XXXX XXXX XXXX"
             className="h-11 rounded-xl"
             maxLength={19}
@@ -219,7 +235,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Input
             id="ubs"
             value={ubs}
-            onChange={(e) => setUbs(e.target.value)}
+            onChange={e => setUbs(e.target.value)}
             placeholder="Unidade de Saúde"
             className="h-11 rounded-xl"
           />
@@ -230,13 +246,18 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           <Label htmlFor="status" className="font-bold">
             Status
           </Label>
-          <Select value={status} onValueChange={(value) => setStatus(value as StatusPaciente)}>
+          <Select
+            value={status}
+            onValueChange={value => setStatus(value as StatusPaciente)}
+          >
             <SelectTrigger id="status" className="h-11 w-full rounded-xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {STATUS_LIST.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+              {STATUS_LIST.map(s => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -249,7 +270,9 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
         <Dialog open={openDiagnostico} onOpenChange={setOpenDiagnostico}>
           <DialogTrigger asChild>
             <Button variant="outline" className="h-11 rounded-full px-5">
-              {diagnostico ? 'Editar diagnóstico' : 'Adicionar diagnóstico (opcional)'}
+              {diagnostico
+                ? "Editar diagnóstico"
+                : "Adicionar diagnóstico (opcional)"}
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -258,13 +281,16 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
             </DialogHeader>
             <div className="flex flex-col gap-4">
               <div>
-                <Label htmlFor="diagnostico-input" className="text-sm font-medium mb-2 block">
+                <Label
+                  htmlFor="diagnostico-input"
+                  className="text-sm font-medium mb-2 block"
+                >
                   Diagnóstico ({diagnostico.length}/180 caracteres)
                 </Label>
                 <Textarea
                   id="diagnostico-input"
                   value={diagnostico}
-                  onChange={(e) => setDiagnostico(e.target.value.slice(0, 180))}
+                  onChange={e => setDiagnostico(e.target.value.slice(0, 180))}
                   placeholder="Digite o diagnóstico do paciente..."
                   className="h-11 rounded-xl"
                   rows={4}
@@ -280,12 +306,14 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           </DialogContent>
         </Dialog>
 
-        {/* Profissional (se Em Atendimento) */}
-        {status === 'Em Atendimento' && (
+        {/* Profissional (qualquer status fora da espera) */}
+        {status !== "Aguardando" && (
           <Dialog open={openProfissional} onOpenChange={setOpenProfissional}>
             <DialogTrigger asChild>
               <Button variant="outline" className="h-11 rounded-full px-5">
-                {profissional ? profissional.split(' ')[0] : 'Selecionar fonoaudióloga'}
+                {profissional
+                  ? profissional.split(" ")[0]
+                  : "Selecionar fonoaudióloga"}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -293,10 +321,10 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
                 <DialogTitle>Selecionar Fonoaudióloga</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-3">
-                {PROFISSIONAIS.map((prof) => (
+                {PROFISSIONAIS.map(prof => (
                   <Button
                     key={prof}
-                    variant={profissional === prof ? 'default' : 'outline'}
+                    variant={profissional === prof ? "default" : "outline"}
                     onClick={() => {
                       setProfissional(prof);
                       setOpenProfissional(false);
@@ -316,7 +344,7 @@ export function FormularioCadastro({ onAdicionarPaciente, onAtualizarPaciente }:
           onClick={handleGravar}
           className="h-11 rounded-full px-7 font-bold sm:ml-auto"
         >
-          {modoEdicao ? 'Salvar alterações' : 'Adicionar à fila'}
+          {modoEdicao ? "Salvar alterações" : "Adicionar à fila"}
         </Button>
 
         {/* Botão Cancelar (se em edição) */}

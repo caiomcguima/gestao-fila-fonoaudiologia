@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Paciente, StatusPaciente, STATUS_LIST } from "@/types";
+import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
 import {
   contarPorStatus,
   numerarPorStatus,
@@ -59,6 +59,7 @@ const corStatus = (status: string) =>
   "bg-muted text-foreground ring-border";
 
 type Filtro = "Todos" | StatusPaciente;
+const TODAS_PROFISSIONAIS = "__todas__";
 type CampoBusca = "nome" | "cpf" | "cns" | "dataNascimento";
 
 // Colunas fixas ao rolar para os lados: Nº (5rem) e Nome logo depois
@@ -86,28 +87,54 @@ export function TabelaPacientes({
   const [detalhePaciente, setDetalhePaciente] = useState<Paciente | null>(null);
   const [pacienteExcluir, setPacienteExcluir] = useState<Paciente | null>(null);
 
-  // Nº calculado sobre a lista inteira, então a busca por texto não altera a posição de ninguém
-  const numeros = useMemo(() => numerarPorStatus(pacientes), [pacientes]);
-  // Em "Todos", numeração corrida de 1 a N na ordem de exibição
-  const numerosTodos = useMemo(
-    () => new Map(ordenarParaExibicao(pacientes).map((p, i) => [p.id, i + 1])),
+  const [profissional, setProfissional] = useState(TODAS_PROFISSIONAIS);
+
+  // Lista fixa + nomes antigos que existam no banco
+  const opcoesProfissional = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...PROFISSIONAIS,
+          ...pacientes.map(p => p.profissional).filter((x): x is string => !!x),
+        ])
+      ),
     [pacientes]
   );
-  const contagem = useMemo(() => contarPorStatus(pacientes), [pacientes]);
+
+  // Base da tela: todos, ou só os pacientes da profissional escolhida.
+  // Contagens e Nº são calculados sobre ela, então a busca por texto não altera a numeração.
+  const base = useMemo(
+    () =>
+      profissional === TODAS_PROFISSIONAIS
+        ? pacientes
+        : pacientes.filter(p => p.profissional === profissional),
+    [pacientes, profissional]
+  );
+  const numeros = useMemo(() => numerarPorStatus(base), [base]);
+  // Em "Todos", numeração corrida de 1 a N na ordem de exibição
+  const numerosTodos = useMemo(
+    () => new Map(ordenarParaExibicao(base).map((p, i) => [p.id, i + 1])),
+    [base]
+  );
+  const contagem = useMemo(() => contarPorStatus(base), [base]);
 
   const pacientesFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const lista = pacientes.filter(p => {
+    const lista = base.filter(p => {
       if (filtro !== "Todos" && p.status !== filtro) return false;
       return !termo || (p[buscaPorCampo] ?? "").toLowerCase().includes(termo);
     });
     return ordenarParaExibicao(lista);
-  }, [pacientes, busca, filtro, buscaPorCampo]);
+  }, [base, busca, filtro, buscaPorCampo]);
 
   const numeroDe = (p: Paciente) =>
     (filtro === "Todos" ? numerosTodos : numeros).get(p.id);
   const rotuloNumero = filtro === "Aguardando" ? "Posição" : "Nº";
-  const tituloAtual = filtro === "Todos" ? "Todos os status" : filtro;
+  const tituloStatus = filtro === "Todos" ? "Todos os status" : filtro;
+  const tituloAtual =
+    profissional === TODAS_PROFISSIONAIS
+      ? tituloStatus
+      : `${tituloStatus} — ${profissional}`;
 
   const opcoesFiltro: { valor: Filtro; rotulo: string; total: number }[] = [
     ...STATUS_LIST.map(s => ({
@@ -115,7 +142,7 @@ export function TabelaPacientes({
       rotulo: s,
       total: contagem.get(s) ?? 0,
     })),
-    { valor: "Todos", rotulo: "Todos", total: pacientes.length },
+    { valor: "Todos", rotulo: "Todos", total: base.length },
   ];
 
   const confirmarExclusao = () => {
@@ -192,7 +219,30 @@ export function TabelaPacientes({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-3 mt-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[18rem_12rem_1fr] gap-3 mt-4 mb-6">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <Label htmlFor="filtroProfissional" className="sr-only">
+            Filtrar por profissional
+          </Label>
+          <Select value={profissional} onValueChange={setProfissional}>
+            <SelectTrigger
+              id="filtroProfissional"
+              className="h-11 w-full bg-card rounded-xl"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODAS_PROFISSIONAIS}>
+                Todas as profissionais
+              </SelectItem>
+              {opcoesProfissional.map(nome => (
+                <SelectItem key={nome} value={nome}>
+                  {nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label htmlFor="tipoBusca" className="sr-only">
             Buscar por
@@ -329,7 +379,8 @@ export function TabelaPacientes({
       )}
 
       <p className="mt-4 text-muted-foreground">
-        Exibindo {pacientesFiltrados.length} de {pacientes.length} pacientes
+        Exibindo {pacientesFiltrados.length} de {base.length} pacientes
+        {profissional !== TODAS_PROFISSIONAIS && ` de ${profissional}`}
       </p>
 
       <Dialog

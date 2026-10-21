@@ -11,6 +11,11 @@ export const STATUS_LIST = [
 
 export type StatusPaciente = (typeof STATUS_LIST)[number];
 
+export const PROFISSIONAIS = [
+  "Tarciana Aparecida Rodrigues do Vale",
+  "Tassia Silveira Torresia Machado",
+];
+
 export interface Paciente {
   id: string;
   nome: string; // Nome do paciente
