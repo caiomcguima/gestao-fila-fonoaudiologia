@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Paciente, StatusPaciente } from "@/types";
-import { numerarPorStatus, ordenarParaExibicao } from "./fila";
+import {
+  diasDeEspera,
+  formatarEspera,
+  hojeFormatado,
+  numerarPorStatus,
+  ordenarParaExibicao,
+} from "./fila";
 
 const p = (
   id: string,
@@ -55,5 +61,26 @@ describe("fila", () => {
       "x",
       "y",
     ]);
+  });
+});
+
+describe("tempo de espera", () => {
+  const hoje = new Date(2026, 9, 27); // 27/10/2026
+
+  it("conta os dias desde a Data de Admissão", () => {
+    expect(diasDeEspera("27/10/2026", hoje)).toBe(0);
+    expect(diasDeEspera("26/09/2026", hoje)).toBe(31);
+    expect(formatarEspera("26/10/2026", hoje)).toBe("1 dia");
+    expect(formatarEspera("27/10/2025", hoje)).toBe("365 dias");
+  });
+
+  it("mostra '-' para data vazia, inválida ou futura", () => {
+    expect(formatarEspera("", hoje)).toBe("-");
+    expect(formatarEspera("10/2026", hoje)).toBe("-");
+    expect(formatarEspera("28/10/2026", hoje)).toBe("-");
+  });
+
+  it("formata hoje como DD/MM/AAAA", () => {
+    expect(hojeFormatado(hoje)).toBe("27/10/2026");
   });
 });

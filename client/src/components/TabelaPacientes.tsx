@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
 import {
   contarPorStatus,
+  formatarEspera,
+  hojeFormatado,
   numerarPorStatus,
   ordenarParaExibicao,
 } from "@/lib/fila";
+import { maskData } from "@/lib/masks";
 import type { LinhaPDF } from "@/lib/exportPDF";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,7 +72,11 @@ const FIXA_NOME = "sticky left-20 z-[1] shadow-[1px_0_0_var(--border)]";
 interface TabelaPacientesProps {
   pacientes: Paciente[];
   onDeletarPaciente: (id: string) => void;
-  onAtualizarStatus: (id: string, novoStatus: StatusPaciente) => void;
+  onAtualizarStatus: (
+    id: string,
+    novoStatus: StatusPaciente,
+    dataAlta?: string
+  ) => void;
   onExportarPDF: (linhas: LinhaPDF[], titulo: string) => void;
   onEditarPaciente?: (paciente: Paciente) => void;
 }
@@ -86,6 +93,9 @@ export function TabelaPacientes({
   const [buscaPorCampo, setBuscaPorCampo] = useState<CampoBusca>("nome");
   const [detalhePaciente, setDetalhePaciente] = useState<Paciente | null>(null);
   const [pacienteExcluir, setPacienteExcluir] = useState<Paciente | null>(null);
+  // Alta pede a data antes de salvar
+  const [pacienteAlta, setPacienteAlta] = useState<Paciente | null>(null);
+  const [dataAlta, setDataAlta] = useState("");
 
   const [profissional, setProfissional] = useState(TODAS_PROFISSIONAIS);
 
@@ -152,6 +162,22 @@ export function TabelaPacientes({
     setPacienteExcluir(null);
   };
 
+  const mudarStatus = (id: string, status: StatusPaciente) => {
+    if (status !== "Alta") return onAtualizarStatus(id, status);
+    setDataAlta(hojeFormatado());
+    setPacienteAlta(pacientes.find(p => p.id === id) ?? null);
+  };
+
+  const confirmarAlta = () => {
+    if (!pacienteAlta) return;
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataAlta)) {
+      toast.error("Informe a data da alta (DD/MM/AAAA)");
+      return;
+    }
+    onAtualizarStatus(pacienteAlta.id, "Alta", dataAlta);
+    setPacienteAlta(null);
+  };
+
   const exportar = () =>
     onExportarPDF(
       pacientesFiltrados.map(p => ({ paciente: p, numero: numeroDe(p) })),
@@ -172,7 +198,7 @@ export function TabelaPacientes({
             {tituloAtual}
           </h2>
           <p className="text-muted-foreground mt-1">
-            Numeração por ordem de entrada (campo Data).
+            Numeração por ordem de entrada (Data de Admissão).
           </p>
         </div>
         <Button onClick={exportar} className="rounded-full h-11 px-5 gap-2">
@@ -299,7 +325,7 @@ export function TabelaPacientes({
                 key={p.id}
                 paciente={p}
                 numero={numeroDe(p)}
-                onStatus={onAtualizarStatus}
+                onStatus={mudarStatus}
                 {...acoes}
               />
             ))}
@@ -320,13 +346,14 @@ export function TabelaPacientes({
                     Nome
                   </TableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Data de Admissão</TableHead>
+                  <TableHead>Tempo de Espera</TableHead>
                   <TableHead>UBS</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>CNS</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Profissional</TableHead>
-                  <TableHead>Diagnóstico</TableHead>
+                  <TableHead>Observações</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -351,13 +378,16 @@ export function TabelaPacientes({
                     </TableCell>
                     <TableCell>{p.telefone}</TableCell>
                     <TableCell>{p.data}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatarEspera(p.data)}
+                    </TableCell>
                     <TableCell>{p.ubs}</TableCell>
                     <TableCell>{p.cpf}</TableCell>
                     <TableCell>{p.cns}</TableCell>
                     <TableCell>
                       <StatusEditavel
                         paciente={p}
-                        onStatus={onAtualizarStatus}
+                        onStatus={mudarStatus}
                       />
                     </TableCell>
                     <TableCell>{p.profissional || <Vazio />}</TableCell>
@@ -394,6 +424,33 @@ export function TabelaPacientes({
             </DialogTitle>
           </DialogHeader>
           {detalhePaciente && <Detalhes paciente={detalhePaciente} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!pacienteAlta}
+        onOpenChange={aberto => !aberto && setPacienteAlta(null)}
+      >
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Alta de {pacienteAlta?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dataAltaTabela" className="font-bold">
+              Data da Alta
+            </Label>
+            <Input
+              id="dataAltaTabela"
+              value={dataAlta}
+              onChange={e => setDataAlta(maskData(e.target.value))}
+              placeholder="DD/MM/YYYY"
+              className="h-11 rounded-xl"
+              maxLength={10}
+            />
+          </div>
+          <Button onClick={confirmarAlta} className="w-full">
+            Confirmar alta
+          </Button>
         </DialogContent>
       </Dialog>
 
@@ -535,15 +592,19 @@ function CartaoPaciente({
         </div>
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-[0.95rem]">
-        <Campo rotulo="Data" valor={paciente.data} />
+        <Campo rotulo="Data de Admissão" valor={paciente.data} />
+        <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente.data)} />
         <Campo rotulo="UBS" valor={paciente.ubs} />
         <Campo rotulo="CPF" valor={paciente.cpf} />
         <Campo rotulo="CNS" valor={paciente.cns} />
         {paciente.profissional && (
           <Campo rotulo="Profissional" valor={paciente.profissional} largo />
         )}
+        {paciente.status === "Alta" && paciente.dataAlta && (
+          <Campo rotulo="Data da Alta" valor={paciente.dataAlta} largo />
+        )}
         {paciente.diagnostico && (
-          <Campo rotulo="Diagnóstico" valor={paciente.diagnostico} largo />
+          <Campo rotulo="Observações" valor={paciente.diagnostico} largo />
         )}
       </dl>
       <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
@@ -575,7 +636,8 @@ function Detalhes({ paciente }: { paciente: Paciente }) {
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
       <Campo rotulo="Telefone" valor={paciente.telefone} />
-      <Campo rotulo="Data" valor={paciente.data} />
+      <Campo rotulo="Data de Admissão" valor={paciente.data} />
+      <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente.data)} />
       <Campo rotulo="Nascimento" valor={paciente.dataNascimento} />
       <Campo rotulo="UBS" valor={paciente.ubs} />
       <Campo rotulo="CPF" valor={paciente.cpf} />
@@ -596,8 +658,11 @@ function Detalhes({ paciente }: { paciente: Paciente }) {
       {paciente.profissional && (
         <Campo rotulo="Profissional" valor={paciente.profissional} largo />
       )}
+      {paciente.status === "Alta" && paciente.dataAlta && (
+        <Campo rotulo="Data da Alta" valor={paciente.dataAlta} largo />
+      )}
       {paciente.diagnostico && (
-        <Campo rotulo="Diagnóstico" valor={paciente.diagnostico} largo />
+        <Campo rotulo="Observações" valor={paciente.diagnostico} largo />
       )}
     </dl>
   );

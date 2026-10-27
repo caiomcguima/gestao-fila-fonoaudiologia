@@ -21,6 +21,7 @@ import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
 import { maskCPF, maskCNS, maskData, maskTelefone } from "@/lib/masks";
 import { useEdit } from "@/contexts/EditContext";
 import { toast } from "sonner";
+import { hojeFormatado } from "@/lib/fila";
 
 interface FormularioCadastroProps {
   onAdicionarPaciente: (paciente: Omit<Paciente, "id">) => void;
@@ -42,6 +43,7 @@ export function FormularioCadastro({
   const [ubs, setUbs] = useState("");
   const [status, setStatus] = useState<StatusPaciente>("Aguardando");
   const [profissional, setProfissional] = useState("");
+  const [dataAlta, setDataAlta] = useState("");
   const [diagnostico, setDiagnostico] = useState("");
   const [openProfissional, setOpenProfissional] = useState(false);
   const [openDiagnostico, setOpenDiagnostico] = useState(false);
@@ -58,6 +60,7 @@ export function FormularioCadastro({
       setUbs(pacienteEmEdicao.ubs);
       setStatus(pacienteEmEdicao.status);
       setProfissional(pacienteEmEdicao.profissional || "");
+      setDataAlta(pacienteEmEdicao.dataAlta || "");
       setDiagnostico(pacienteEmEdicao.diagnostico || "");
       setModoEdicao(true);
     }
@@ -65,7 +68,11 @@ export function FormularioCadastro({
 
   const validarFormulario = (): boolean => {
     if (diagnostico.length > 180) {
-      toast.error("Diagnóstico não pode exceder 180 caracteres");
+      toast.error("Observações não podem exceder 180 caracteres");
+      return false;
+    }
+    if (status === "Alta" && !/^\d{2}\/\d{2}\/\d{4}$/.test(dataAlta)) {
+      toast.error("Informe a data da alta (DD/MM/AAAA)");
       return false;
     }
     return true;
@@ -81,6 +88,7 @@ export function FormularioCadastro({
     setUbs("");
     setStatus("Aguardando");
     setProfissional("");
+    setDataAlta("");
     setDiagnostico("");
     setModoEdicao(false);
     finalizarEdicao();
@@ -101,6 +109,7 @@ export function FormularioCadastro({
       // Mantém quem atendeu mesmo após Alta/Desistência etc.; só quem ainda aguarda fica sem profissional
       profissional:
         status !== "Aguardando" ? profissional || undefined : undefined,
+      dataAlta: status === "Alta" ? dataAlta : undefined,
       diagnostico: diagnostico || undefined,
     };
 
@@ -167,10 +176,10 @@ export function FormularioCadastro({
           />
         </div>
 
-        {/* Data */}
+        {/* Data de Admissão na fila */}
         <div className="flex flex-col gap-2">
           <Label htmlFor="data" className="font-bold">
-            Data
+            Data de Admissão
           </Label>
           <Input
             id="data"
@@ -248,7 +257,11 @@ export function FormularioCadastro({
           </Label>
           <Select
             value={status}
-            onValueChange={value => setStatus(value as StatusPaciente)}
+            onValueChange={value => {
+              setStatus(value as StatusPaciente);
+              // Sugere hoje como data da alta; o usuário pode trocar
+              if (value === "Alta" && !dataAlta) setDataAlta(hojeFormatado());
+            }}
           >
             <SelectTrigger id="status" className="h-11 w-full rounded-xl">
               <SelectValue />
@@ -262,22 +275,37 @@ export function FormularioCadastro({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Data da Alta (só aparece com status Alta) */}
+        {status === "Alta" && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dataAlta" className="font-bold">
+              Data da Alta
+            </Label>
+            <Input
+              id="dataAlta"
+              value={dataAlta}
+              onChange={e => setDataAlta(maskData(e.target.value))}
+              placeholder="DD/MM/YYYY"
+              className="h-11 rounded-xl"
+              maxLength={10}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Linha 2: Diagnóstico e Botões */}
+      {/* Linha 2: Observações e Botões */}
       <div className="flex gap-3 items-center flex-wrap pt-2">
-        {/* Diagnóstico */}
+        {/* Observações (salvo no campo "diagnostico" do banco) */}
         <Dialog open={openDiagnostico} onOpenChange={setOpenDiagnostico}>
           <DialogTrigger asChild>
             <Button variant="outline" className="h-11 rounded-full px-5">
-              {diagnostico
-                ? "Editar diagnóstico"
-                : "Adicionar diagnóstico (opcional)"}
+              {diagnostico ? "Editar observações" : "Observações"}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Diagnóstico</DialogTitle>
+              <DialogTitle>Observações</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-4">
               <div>
@@ -285,13 +313,13 @@ export function FormularioCadastro({
                   htmlFor="diagnostico-input"
                   className="text-sm font-medium mb-2 block"
                 >
-                  Diagnóstico ({diagnostico.length}/180 caracteres)
+                  Observações ({diagnostico.length}/180 caracteres)
                 </Label>
                 <Textarea
                   id="diagnostico-input"
                   value={diagnostico}
                   onChange={e => setDiagnostico(e.target.value.slice(0, 180))}
-                  placeholder="Digite o diagnóstico do paciente..."
+                  placeholder="Digite as observações sobre o paciente..."
                   className="h-11 rounded-xl"
                   rows={4}
                 />

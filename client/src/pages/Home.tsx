@@ -88,11 +88,15 @@ export default function Home() {
 
   const handleAtualizarStatus = async (
     id: string,
-    novoStatus: StatusPaciente
+    novoStatus: StatusPaciente,
+    dataAlta?: string
   ) => {
     const paciente = pacientes.find(p => p.id === id);
     if (paciente) {
-      await atualizarPaciente(id, { status: novoStatus });
+      await atualizarPaciente(id, {
+        status: novoStatus,
+        ...(dataAlta && { dataAlta }),
+      });
     }
   };
 

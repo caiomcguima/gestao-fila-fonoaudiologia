@@ -48,3 +48,24 @@ export function contarPorStatus(pacientes: Paciente[]): Map<string, number> {
     contagem.set(p.status, (contagem.get(p.status) ?? 0) + 1);
   return contagem;
 }
+
+// Dias entre a Data de Admissão (DD/MM/AAAA) e "hoje"; undefined se a data for inválida ou futura
+export function diasDeEspera(data: string, hoje = new Date()): number | undefined {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(data.trim());
+  if (!m) return undefined;
+  const admissao = Date.UTC(+m[3], +m[2] - 1, +m[1]);
+  const agora = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const dias = Math.round((agora - admissao) / 86_400_000);
+  return dias >= 0 ? dias : undefined;
+}
+
+export function formatarEspera(data: string, hoje = new Date()): string {
+  const dias = diasDeEspera(data, hoje);
+  if (dias === undefined) return "-";
+  return dias === 1 ? "1 dia" : `${dias} dias`;
+}
+
+// "Hoje" no formato DD/MM/AAAA (padrão da data da alta)
+export function hojeFormatado(hoje = new Date()): string {
+  return hoje.toLocaleDateString("pt-BR");
+}

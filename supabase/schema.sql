@@ -23,10 +23,14 @@ create table if not exists public.pacientes (
   ubs text not null default '',
   status text not null default 'Aguardando',
   profissional text,
-  diagnostico text,
+  "dataAlta" text,
+  diagnostico text, -- exibido no app como "Observações"
   created_at timestamptz not null default now(),
   updated_at timestamptz
 );
+
+-- 1.1) Migração para bancos criados antes da coluna "Data da Alta"
+alter table public.pacientes add column if not exists "dataAlta" text;
 
 -- 2) Habilitar Row Level Security
 alter table public.pacientes enable row level security;

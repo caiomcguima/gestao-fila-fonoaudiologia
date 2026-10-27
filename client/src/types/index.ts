@@ -20,14 +20,15 @@ export interface Paciente {
   id: string;
   nome: string; // Nome do paciente
   telefone: string; // Telefone (XX X XXXX-XXXX)
-  data: string; // Data de inserção (DD/MM/YYYY)
+  data: string; // Data de Admissão na fila (DD/MM/YYYY)
   dataNascimento: string; // DN (DD/MM/YYYY)
   cpf: string; // XXX.XXX.XXX-XX
   cns: string; // 15 dígitos
   ubs: string; // Unidade de Saúde de Referência
   status: StatusPaciente;
   profissional?: string; // Nome da fonoaudióloga (quando status = "Em Atendimento")
-  diagnostico?: string; // Máximo 180 caracteres
+  dataAlta?: string; // Data da alta (DD/MM/YYYY), só quando status = "Alta"
+  diagnostico?: string; // Exibido como "Observações". Máximo 180 caracteres
   created_at?: string; // Preenchido pelo banco
 }
 
