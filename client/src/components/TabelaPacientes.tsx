@@ -379,16 +379,13 @@ export function TabelaPacientes({
                     <TableCell>{p.telefone}</TableCell>
                     <TableCell>{p.data}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {formatarEspera(p.data)}
+                      {formatarEspera(p)}
                     </TableCell>
                     <TableCell>{p.ubs}</TableCell>
                     <TableCell>{p.cpf}</TableCell>
                     <TableCell>{p.cns}</TableCell>
                     <TableCell>
-                      <StatusEditavel
-                        paciente={p}
-                        onStatus={mudarStatus}
-                      />
+                      <StatusEditavel paciente={p} onStatus={mudarStatus} />
                     </TableCell>
                     <TableCell>{p.profissional || <Vazio />}</TableCell>
                     <TableCell
@@ -593,7 +590,7 @@ function CartaoPaciente({
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-[0.95rem]">
         <Campo rotulo="Data de Admissão" valor={paciente.data} />
-        <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente.data)} />
+        <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente)} />
         <Campo rotulo="UBS" valor={paciente.ubs} />
         <Campo rotulo="CPF" valor={paciente.cpf} />
         <Campo rotulo="CNS" valor={paciente.cns} />
@@ -637,7 +634,7 @@ function Detalhes({ paciente }: { paciente: Paciente }) {
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
       <Campo rotulo="Telefone" valor={paciente.telefone} />
       <Campo rotulo="Data de Admissão" valor={paciente.data} />
-      <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente.data)} />
+      <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente)} />
       <Campo rotulo="Nascimento" valor={paciente.dataNascimento} />
       <Campo rotulo="UBS" valor={paciente.ubs} />
       <Campo rotulo="CPF" valor={paciente.cpf} />

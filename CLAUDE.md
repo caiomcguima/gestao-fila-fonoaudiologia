@@ -42,7 +42,7 @@ server/index.ts           # Express opcional para self-host; a Vercel não usa
 - **Datas são texto `DD/MM/AAAA`**, não `Date`/ISO. Use as máscaras e os helpers de `lib/fila.ts`.
 - **Data de Admissão** = campo `data` do banco. Define a ordem da fila (desempate: `created_at`, depois `id`).
 - **Nº/Posição** é calculado na hora (`numerarPorStatus`), nunca salvo. Em "Aguardando" é a posição na fila.
-- **Tempo de Espera** = hoje − Data de Admissão, em dias (`formatarEspera`). Calculado, não salvo.
+- **Tempo de Espera** só conta em "Aguardando" (`diasDeEspera`/`formatarEspera`): fora dele fica pausado em `esperaPausadaEm`; ao voltar, os dias parados vão para `diasPausados`. Toda troca de status deve passar por `ajusteDeEspera` (já feito em `Home.tsx`).
 - **Alta** exige **Data da Alta** (`dataAlta`): no formulário aparece um campo; na troca rápida de status da tabela abre um diálogo (sugere hoje).
 - **Observações** = coluna `diagnostico` no banco (só o rótulo mudou; máx. 180 caracteres).
 - **Profissional** fica salvo para qualquer status exceto "Aguardando" (mantém histórico após alta).
@@ -52,7 +52,7 @@ server/index.ts           # Express opcional para self-host; a Vercel não usa
 
 - Colunas em camelCase **com aspas** (`"dataNascimento"`, `"dataAlta"`) para casar com as chaves do app.
 - **Coluna nova no `Paciente` = migração obrigatória**: adicione `alter table ... add column if not exists` em `supabase/schema.sql` e avise o usuário para rodar no SQL Editor **antes** do deploy — senão o insert/update falha e o app mostra "Não foi possível salvar no servidor".
-- Inserts/updates enviam o objeto inteiro; campos `undefined` são omitidos (não limpam o valor no banco).
+- Inserts/updates enviam o objeto inteiro; campos `undefined` são omitidos (não limpam o valor no banco). Para limpar, envie `null`.
 - O estado é atualizado pela assinatura Realtime, não pela resposta do insert/update.
 
 ## Ambiente e deploy

@@ -31,7 +31,7 @@ function colunasVisiveis(linhas: LinhaPDF[]): Coluna[] {
     { header: "Nome", valor: l => l.paciente.nome },
     { header: "Telefone", valor: l => l.paciente.telefone, largura: 30 },
     { header: "Admissão", valor: l => l.paciente.data, largura: 22 },
-    { header: "Espera", valor: l => formatarEspera(l.paciente.data), largura: 20 },
+    { header: "Espera", valor: l => formatarEspera(l.paciente), largura: 26 },
     { header: "UBS", valor: l => l.paciente.ubs },
     { header: "CPF", valor: l => l.paciente.cpf, largura: 29 },
     { header: "CNS", valor: l => l.paciente.cns, largura: 39 },

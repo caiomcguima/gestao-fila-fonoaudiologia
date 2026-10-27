@@ -28,6 +28,8 @@ export interface Paciente {
   status: StatusPaciente;
   profissional?: string; // Nome da fonoaudióloga (quando status = "Em Atendimento")
   dataAlta?: string; // Data da alta (DD/MM/YYYY), só quando status = "Alta"
+  esperaPausadaEm?: string | null; // DD/MM/YYYY em que saiu de "Aguardando"; null = contando
+  diasPausados?: number; // Dias fora de "Aguardando" já descontados (quando voltou à fila)
   diagnostico?: string; // Exibido como "Observações". Máximo 180 caracteres
   created_at?: string; // Preenchido pelo banco
 }

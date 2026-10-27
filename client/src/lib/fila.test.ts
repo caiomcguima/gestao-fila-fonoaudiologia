@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Paciente, StatusPaciente } from "@/types";
 import {
+  ajusteDeEspera,
   diasDeEspera,
   formatarEspera,
   hojeFormatado,
@@ -66,18 +67,53 @@ describe("fila", () => {
 
 describe("tempo de espera", () => {
   const hoje = new Date(2026, 9, 27); // 27/10/2026
+  const aguardando = p("e", "Aguardando", "26/09/2026");
 
-  it("conta os dias desde a Data de Admissão", () => {
-    expect(diasDeEspera("27/10/2026", hoje)).toBe(0);
-    expect(diasDeEspera("26/09/2026", hoje)).toBe(31);
-    expect(formatarEspera("26/10/2026", hoje)).toBe("1 dia");
-    expect(formatarEspera("27/10/2025", hoje)).toBe("365 dias");
+  it("conta os dias desde a Data de Admissão enquanto aguarda", () => {
+    expect(diasDeEspera(aguardando, hoje)).toBe(31);
+    expect(formatarEspera(p("e", "Aguardando", "26/10/2026"), hoje)).toBe(
+      "1 dia"
+    );
   });
 
   it("mostra '-' para data vazia, inválida ou futura", () => {
-    expect(formatarEspera("", hoje)).toBe("-");
-    expect(formatarEspera("10/2026", hoje)).toBe("-");
-    expect(formatarEspera("28/10/2026", hoje)).toBe("-");
+    for (const data of ["", "10/2026", "28/10/2026"])
+      expect(formatarEspera(p("e", "Aguardando", data), hoje)).toBe("-");
+  });
+
+  it("pausa ao sair de Aguardando e retoma descontando a pausa", () => {
+    // sai da fila em 06/10 (10 dias de espera)
+    const saiu = {
+      ...aguardando,
+      status: "Em Atendimento" as const,
+      ...ajusteDeEspera(aguardando, "Em Atendimento", new Date(2026, 9, 6)),
+    };
+    expect(saiu.esperaPausadaEm).toBe("06/10/2026");
+    expect(formatarEspera(saiu, hoje)).toBe("10 dias (pausado)");
+    // troca entre status fora da fila não mexe na pausa
+    expect(ajusteDeEspera(saiu, "Alta", hoje)).toEqual({});
+
+    // volta para a fila em 16/10 (10 dias pausado) e conta de novo até 27/10
+    const voltou = {
+      ...saiu,
+      status: "Aguardando" as const,
+      ...ajusteDeEspera(saiu, "Aguardando", new Date(2026, 9, 16)),
+    };
+    expect(voltou).toMatchObject({ esperaPausadaEm: null, diasPausados: 10 });
+    expect(diasDeEspera(voltou, hoje)).toBe(21);
+  });
+
+  it("paciente novo cadastrado fora da fila já nasce pausado", () => {
+    expect(ajusteDeEspera(undefined, "Alta", hoje)).toEqual({
+      esperaPausadaEm: "27/10/2026",
+    });
+    expect(ajusteDeEspera(undefined, "Aguardando", hoje)).toEqual({});
+  });
+
+  it("paciente antigo sem data de pausa usa a data da alta", () => {
+    const antigo = { ...p("e", "Alta", "26/09/2026"), dataAlta: "01/10/2026" };
+    expect(formatarEspera(antigo, hoje)).toBe("5 dias (pausado)");
+    expect(formatarEspera(p("e", "Desistência", "26/09/2026"), hoje)).toBe("-");
   });
 
   it("formata hoje como DD/MM/AAAA", () => {
