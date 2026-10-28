@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Paciente } from "@/types";
+import { formatarEspera } from "@/lib/fila";
 
 export interface LinhaPDF {
   paciente: Paciente;
@@ -29,7 +30,8 @@ function colunasVisiveis(linhas: LinhaPDF[]): Coluna[] {
     },
     { header: "Nome", valor: l => l.paciente.nome },
     { header: "Telefone", valor: l => l.paciente.telefone, largura: 30 },
-    { header: "Data", valor: l => l.paciente.data, largura: 22 },
+    { header: "Admissão", valor: l => l.paciente.data, largura: 22 },
+    { header: "Espera", valor: l => formatarEspera(l.paciente), largura: 26 },
     { header: "UBS", valor: l => l.paciente.ubs },
     { header: "CPF", valor: l => l.paciente.cpf, largura: 29 },
     { header: "CNS", valor: l => l.paciente.cns, largura: 39 },
@@ -42,7 +44,7 @@ function colunasVisiveis(linhas: LinhaPDF[]): Coluna[] {
       header: "Profissional",
       valor: l => l.paciente.profissional || "-",
     },
-    { header: "Diagnóstico", valor: l => l.paciente.diagnostico || "-" },
+    { header: "Observações", valor: l => l.paciente.diagnostico || "-" },
   ];
   return colunas.filter((c): c is Coluna => Boolean(c));
 }

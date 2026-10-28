@@ -23,10 +23,24 @@ create table if not exists public.pacientes (
   ubs text not null default '',
   status text not null default 'Aguardando',
   profissional text,
-  diagnostico text,
+  "dataAlta" text,
+  "esperaPausadaEm" text, -- data (DD/MM/AAAA) em que saiu de "Aguardando"
+  "diasPausados" integer not null default 0,
+  diagnostico text, -- exibido no app como "Observações"
   created_at timestamptz not null default now(),
   updated_at timestamptz
 );
+
+-- 1.1) Migração para bancos criados antes da coluna "Data da Alta"
+alter table public.pacientes add column if not exists "dataAlta" text;
+
+-- 1.2) Migração do Tempo de Espera pausável (só conta em "Aguardando")
+alter table public.pacientes add column if not exists "esperaPausadaEm" text;
+alter table public.pacientes add column if not exists "diasPausados" integer not null default 0;
+-- Pacientes que já saíram da fila: pausa na data da última alteração (aproximação)
+update public.pacientes
+  set "esperaPausadaEm" = to_char(coalesce(updated_at, created_at) at time zone 'America/Sao_Paulo', 'DD/MM/YYYY')
+  where status <> 'Aguardando' and "esperaPausadaEm" is null;
 
 -- 2) Habilitar Row Level Security
 alter table public.pacientes enable row level security;

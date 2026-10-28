@@ -1,4 +1,4 @@
-import { Paciente, STATUS_LIST } from "@/types";
+import { Paciente, StatusPaciente, STATUS_LIST } from "@/types";
 
 // "DD/MM/AAAA" -> "AAAAMMDD" para comparar como texto; data vazia ou inválida vai para o fim
 function chaveData(data: string | undefined): string {
@@ -47,4 +47,69 @@ export function contarPorStatus(pacientes: Paciente[]): Map<string, number> {
   for (const p of pacientes)
     contagem.set(p.status, (contagem.get(p.status) ?? 0) + 1);
   return contagem;
+}
+
+// "DD/MM/AAAA" -> dia em ms (UTC); undefined se inválida
+function diaUTC(data: string | undefined): number | undefined {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((data ?? "").trim());
+  return m ? Date.UTC(+m[3], +m[2] - 1, +m[1]) : undefined;
+}
+
+// Dias de "inicio" até "fim"; undefined se alguma data for inválida ou fim < inicio
+function diasEntre(inicio: string | undefined, fim: string | undefined) {
+  const a = diaUTC(inicio);
+  const b = diaUTC(fim);
+  if (a === undefined || b === undefined || b < a) return undefined;
+  return Math.round((b - a) / 86_400_000);
+}
+
+// "Hoje" no formato DD/MM/AAAA
+export function hojeFormatado(hoje = new Date()): string {
+  return hoje.toLocaleDateString("pt-BR");
+}
+
+// Tempo de Espera: só conta em "Aguardando". Fora dele fica parado na data da pausa.
+// Paciente antigo sem data de pausa: usa a data da alta, senão não dá para calcular.
+export function diasDeEspera(
+  p: Paciente,
+  hoje = new Date()
+): number | undefined {
+  const fim =
+    p.esperaPausadaEm ??
+    (p.status === "Aguardando" ? hojeFormatado(hoje) : p.dataAlta);
+  const dias = diasEntre(p.data, fim);
+  return dias === undefined
+    ? undefined
+    : Math.max(0, dias - (p.diasPausados ?? 0));
+}
+
+export function formatarEspera(p: Paciente, hoje = new Date()): string {
+  const dias = diasDeEspera(p, hoje);
+  if (dias === undefined) return "-";
+  const texto = dias === 1 ? "1 dia" : `${dias} dias`;
+  return p.status === "Aguardando" ? texto : `${texto} (pausado)`;
+}
+
+// Campos a gravar junto com a troca de status para pausar/retomar o Tempo de Espera.
+// Sai de "Aguardando" -> pausa hoje. Volta para "Aguardando" -> desconta os dias pausados e retoma.
+export function ajusteDeEspera(
+  anterior: Paciente | undefined,
+  novoStatus: StatusPaciente,
+  hoje = new Date()
+): Pick<Paciente, "esperaPausadaEm" | "diasPausados"> {
+  const estavaAguardando = !anterior || anterior.status === "Aguardando";
+  const ficaAguardando = novoStatus === "Aguardando";
+  if (estavaAguardando && !ficaAguardando)
+    return { esperaPausadaEm: hojeFormatado(hoje) };
+  if (!estavaAguardando && ficaAguardando)
+    return {
+      esperaPausadaEm: null,
+      diasPausados:
+        (anterior.diasPausados ?? 0) +
+        (diasEntre(
+          anterior.esperaPausadaEm ?? undefined,
+          hojeFormatado(hoje)
+        ) ?? 0),
+    };
+  return {};
 }

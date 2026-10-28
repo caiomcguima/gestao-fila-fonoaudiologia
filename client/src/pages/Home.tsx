@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEdit } from "@/contexts/EditContext";
 import { useSupabase } from "@/contexts/SupabaseContext";
 import { Paciente, StatusPaciente } from "@/types";
+import { ajusteDeEspera } from "@/lib/fila";
 import { exportarParaPDF, type LinhaPDF } from "@/lib/exportPDF";
 import { toast } from "sonner";
 
@@ -67,7 +68,10 @@ export default function Home() {
 
   const handleAdicionarPaciente = async (paciente: Omit<Paciente, "id">) => {
     try {
-      await adicionarPaciente(paciente);
+      await adicionarPaciente({
+        ...paciente,
+        ...ajusteDeEspera(undefined, paciente.status),
+      });
     } catch (error) {
       toast.error("Erro ao adicionar paciente");
       console.error(error);
@@ -79,7 +83,11 @@ export default function Home() {
     paciente: Omit<Paciente, "id">
   ) => {
     try {
-      await atualizarPaciente(id, paciente);
+      const anterior = pacientes.find(p => p.id === id);
+      await atualizarPaciente(id, {
+        ...paciente,
+        ...ajusteDeEspera(anterior, paciente.status),
+      });
     } catch (error) {
       toast.error("Erro ao atualizar paciente");
       console.error(error);
@@ -88,11 +96,16 @@ export default function Home() {
 
   const handleAtualizarStatus = async (
     id: string,
-    novoStatus: StatusPaciente
+    novoStatus: StatusPaciente,
+    dataAlta?: string
   ) => {
     const paciente = pacientes.find(p => p.id === id);
     if (paciente) {
-      await atualizarPaciente(id, { status: novoStatus });
+      await atualizarPaciente(id, {
+        status: novoStatus,
+        ...(dataAlta && { dataAlta }),
+        ...ajusteDeEspera(paciente, novoStatus),
+      });
     }
   };
 

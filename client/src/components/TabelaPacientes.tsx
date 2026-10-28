@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
-import { Paciente, StatusPaciente, STATUS_LIST } from "@/types";
+import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
 import {
   contarPorStatus,
+  formatarEspera,
+  hojeFormatado,
   numerarPorStatus,
   ordenarParaExibicao,
 } from "@/lib/fila";
+import { maskData } from "@/lib/masks";
 import type { LinhaPDF } from "@/lib/exportPDF";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +62,7 @@ const corStatus = (status: string) =>
   "bg-muted text-foreground ring-border";
 
 type Filtro = "Todos" | StatusPaciente;
+const TODAS_PROFISSIONAIS = "__todas__";
 type CampoBusca = "nome" | "cpf" | "cns" | "dataNascimento";
 
 // Colunas fixas ao rolar para os lados: Nº (5rem) e Nome logo depois
@@ -68,7 +72,11 @@ const FIXA_NOME = "sticky left-20 z-[1] shadow-[1px_0_0_var(--border)]";
 interface TabelaPacientesProps {
   pacientes: Paciente[];
   onDeletarPaciente: (id: string) => void;
-  onAtualizarStatus: (id: string, novoStatus: StatusPaciente) => void;
+  onAtualizarStatus: (
+    id: string,
+    novoStatus: StatusPaciente,
+    dataAlta?: string
+  ) => void;
   onExportarPDF: (linhas: LinhaPDF[], titulo: string) => void;
   onEditarPaciente?: (paciente: Paciente) => void;
 }
@@ -85,29 +93,58 @@ export function TabelaPacientes({
   const [buscaPorCampo, setBuscaPorCampo] = useState<CampoBusca>("nome");
   const [detalhePaciente, setDetalhePaciente] = useState<Paciente | null>(null);
   const [pacienteExcluir, setPacienteExcluir] = useState<Paciente | null>(null);
+  // Alta pede a data antes de salvar
+  const [pacienteAlta, setPacienteAlta] = useState<Paciente | null>(null);
+  const [dataAlta, setDataAlta] = useState("");
 
-  // Nº calculado sobre a lista inteira, então a busca por texto não altera a posição de ninguém
-  const numeros = useMemo(() => numerarPorStatus(pacientes), [pacientes]);
-  // Em "Todos", numeração corrida de 1 a N na ordem de exibição
-  const numerosTodos = useMemo(
-    () => new Map(ordenarParaExibicao(pacientes).map((p, i) => [p.id, i + 1])),
+  const [profissional, setProfissional] = useState(TODAS_PROFISSIONAIS);
+
+  // Lista fixa + nomes antigos que existam no banco
+  const opcoesProfissional = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...PROFISSIONAIS,
+          ...pacientes.map(p => p.profissional).filter((x): x is string => !!x),
+        ])
+      ),
     [pacientes]
   );
-  const contagem = useMemo(() => contarPorStatus(pacientes), [pacientes]);
+
+  // Base da tela: todos, ou só os pacientes da profissional escolhida.
+  // Contagens e Nº são calculados sobre ela, então a busca por texto não altera a numeração.
+  const base = useMemo(
+    () =>
+      profissional === TODAS_PROFISSIONAIS
+        ? pacientes
+        : pacientes.filter(p => p.profissional === profissional),
+    [pacientes, profissional]
+  );
+  const numeros = useMemo(() => numerarPorStatus(base), [base]);
+  // Em "Todos", numeração corrida de 1 a N na ordem de exibição
+  const numerosTodos = useMemo(
+    () => new Map(ordenarParaExibicao(base).map((p, i) => [p.id, i + 1])),
+    [base]
+  );
+  const contagem = useMemo(() => contarPorStatus(base), [base]);
 
   const pacientesFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const lista = pacientes.filter(p => {
+    const lista = base.filter(p => {
       if (filtro !== "Todos" && p.status !== filtro) return false;
       return !termo || (p[buscaPorCampo] ?? "").toLowerCase().includes(termo);
     });
     return ordenarParaExibicao(lista);
-  }, [pacientes, busca, filtro, buscaPorCampo]);
+  }, [base, busca, filtro, buscaPorCampo]);
 
   const numeroDe = (p: Paciente) =>
     (filtro === "Todos" ? numerosTodos : numeros).get(p.id);
   const rotuloNumero = filtro === "Aguardando" ? "Posição" : "Nº";
-  const tituloAtual = filtro === "Todos" ? "Todos os status" : filtro;
+  const tituloStatus = filtro === "Todos" ? "Todos os status" : filtro;
+  const tituloAtual =
+    profissional === TODAS_PROFISSIONAIS
+      ? tituloStatus
+      : `${tituloStatus} — ${profissional}`;
 
   const opcoesFiltro: { valor: Filtro; rotulo: string; total: number }[] = [
     ...STATUS_LIST.map(s => ({
@@ -115,7 +152,7 @@ export function TabelaPacientes({
       rotulo: s,
       total: contagem.get(s) ?? 0,
     })),
-    { valor: "Todos", rotulo: "Todos", total: pacientes.length },
+    { valor: "Todos", rotulo: "Todos", total: base.length },
   ];
 
   const confirmarExclusao = () => {
@@ -123,6 +160,22 @@ export function TabelaPacientes({
     onDeletarPaciente(pacienteExcluir.id);
     toast.success("Paciente excluído");
     setPacienteExcluir(null);
+  };
+
+  const mudarStatus = (id: string, status: StatusPaciente) => {
+    if (status !== "Alta") return onAtualizarStatus(id, status);
+    setDataAlta(hojeFormatado());
+    setPacienteAlta(pacientes.find(p => p.id === id) ?? null);
+  };
+
+  const confirmarAlta = () => {
+    if (!pacienteAlta) return;
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataAlta)) {
+      toast.error("Informe a data da alta (DD/MM/AAAA)");
+      return;
+    }
+    onAtualizarStatus(pacienteAlta.id, "Alta", dataAlta);
+    setPacienteAlta(null);
   };
 
   const exportar = () =>
@@ -145,7 +198,7 @@ export function TabelaPacientes({
             {tituloAtual}
           </h2>
           <p className="text-muted-foreground mt-1">
-            Numeração por ordem de entrada (campo Data).
+            Numeração por ordem de entrada (Data de Admissão).
           </p>
         </div>
         <Button onClick={exportar} className="rounded-full h-11 px-5 gap-2">
@@ -192,7 +245,30 @@ export function TabelaPacientes({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-3 mt-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[18rem_12rem_1fr] gap-3 mt-4 mb-6">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <Label htmlFor="filtroProfissional" className="sr-only">
+            Filtrar por profissional
+          </Label>
+          <Select value={profissional} onValueChange={setProfissional}>
+            <SelectTrigger
+              id="filtroProfissional"
+              className="h-11 w-full bg-card rounded-xl"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODAS_PROFISSIONAIS}>
+                Todas as profissionais
+              </SelectItem>
+              {opcoesProfissional.map(nome => (
+                <SelectItem key={nome} value={nome}>
+                  {nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label htmlFor="tipoBusca" className="sr-only">
             Buscar por
@@ -249,7 +325,7 @@ export function TabelaPacientes({
                 key={p.id}
                 paciente={p}
                 numero={numeroDe(p)}
-                onStatus={onAtualizarStatus}
+                onStatus={mudarStatus}
                 {...acoes}
               />
             ))}
@@ -270,13 +346,14 @@ export function TabelaPacientes({
                     Nome
                   </TableHead>
                   <TableHead>Telefone</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Data de Admissão</TableHead>
+                  <TableHead>Tempo de Espera</TableHead>
                   <TableHead>UBS</TableHead>
                   <TableHead>CPF</TableHead>
                   <TableHead>CNS</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Profissional</TableHead>
-                  <TableHead>Diagnóstico</TableHead>
+                  <TableHead>Observações</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -301,14 +378,14 @@ export function TabelaPacientes({
                     </TableCell>
                     <TableCell>{p.telefone}</TableCell>
                     <TableCell>{p.data}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatarEspera(p)}
+                    </TableCell>
                     <TableCell>{p.ubs}</TableCell>
                     <TableCell>{p.cpf}</TableCell>
                     <TableCell>{p.cns}</TableCell>
                     <TableCell>
-                      <StatusEditavel
-                        paciente={p}
-                        onStatus={onAtualizarStatus}
-                      />
+                      <StatusEditavel paciente={p} onStatus={mudarStatus} />
                     </TableCell>
                     <TableCell>{p.profissional || <Vazio />}</TableCell>
                     <TableCell
@@ -329,7 +406,8 @@ export function TabelaPacientes({
       )}
 
       <p className="mt-4 text-muted-foreground">
-        Exibindo {pacientesFiltrados.length} de {pacientes.length} pacientes
+        Exibindo {pacientesFiltrados.length} de {base.length} pacientes
+        {profissional !== TODAS_PROFISSIONAIS && ` de ${profissional}`}
       </p>
 
       <Dialog
@@ -343,6 +421,33 @@ export function TabelaPacientes({
             </DialogTitle>
           </DialogHeader>
           {detalhePaciente && <Detalhes paciente={detalhePaciente} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!pacienteAlta}
+        onOpenChange={aberto => !aberto && setPacienteAlta(null)}
+      >
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Alta de {pacienteAlta?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="dataAltaTabela" className="font-bold">
+              Data da Alta
+            </Label>
+            <Input
+              id="dataAltaTabela"
+              value={dataAlta}
+              onChange={e => setDataAlta(maskData(e.target.value))}
+              placeholder="DD/MM/YYYY"
+              className="h-11 rounded-xl"
+              maxLength={10}
+            />
+          </div>
+          <Button onClick={confirmarAlta} className="w-full">
+            Confirmar alta
+          </Button>
         </DialogContent>
       </Dialog>
 
@@ -484,15 +589,19 @@ function CartaoPaciente({
         </div>
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-[0.95rem]">
-        <Campo rotulo="Data" valor={paciente.data} />
+        <Campo rotulo="Data de Admissão" valor={paciente.data} />
+        <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente)} />
         <Campo rotulo="UBS" valor={paciente.ubs} />
         <Campo rotulo="CPF" valor={paciente.cpf} />
         <Campo rotulo="CNS" valor={paciente.cns} />
         {paciente.profissional && (
           <Campo rotulo="Profissional" valor={paciente.profissional} largo />
         )}
+        {paciente.status === "Alta" && paciente.dataAlta && (
+          <Campo rotulo="Data da Alta" valor={paciente.dataAlta} largo />
+        )}
         {paciente.diagnostico && (
-          <Campo rotulo="Diagnóstico" valor={paciente.diagnostico} largo />
+          <Campo rotulo="Observações" valor={paciente.diagnostico} largo />
         )}
       </dl>
       <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
@@ -524,7 +633,8 @@ function Detalhes({ paciente }: { paciente: Paciente }) {
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
       <Campo rotulo="Telefone" valor={paciente.telefone} />
-      <Campo rotulo="Data" valor={paciente.data} />
+      <Campo rotulo="Data de Admissão" valor={paciente.data} />
+      <Campo rotulo="Tempo de Espera" valor={formatarEspera(paciente)} />
       <Campo rotulo="Nascimento" valor={paciente.dataNascimento} />
       <Campo rotulo="UBS" valor={paciente.ubs} />
       <Campo rotulo="CPF" valor={paciente.cpf} />
@@ -545,8 +655,11 @@ function Detalhes({ paciente }: { paciente: Paciente }) {
       {paciente.profissional && (
         <Campo rotulo="Profissional" valor={paciente.profissional} largo />
       )}
+      {paciente.status === "Alta" && paciente.dataAlta && (
+        <Campo rotulo="Data da Alta" valor={paciente.dataAlta} largo />
+      )}
       {paciente.diagnostico && (
-        <Campo rotulo="Diagnóstico" valor={paciente.diagnostico} largo />
+        <Campo rotulo="Observações" valor={paciente.diagnostico} largo />
       )}
     </dl>
   );
