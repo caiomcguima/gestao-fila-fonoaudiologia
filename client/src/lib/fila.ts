@@ -55,6 +55,19 @@ function diaUTC(data: string | undefined): number | undefined {
   return m ? Date.UTC(+m[3], +m[2] - 1, +m[1]) : undefined;
 }
 
+// true só para data completa e real no calendário ("31/02/2026" e "10/2026" são inválidas)
+export function dataValida(data: string): boolean {
+  const dia = diaUTC(data);
+  if (dia === undefined) return false;
+  const [d, m, a] = data.trim().split("/");
+  const real = new Date(dia);
+  return (
+    real.getUTCDate() === +d &&
+    real.getUTCMonth() === +m - 1 &&
+    real.getUTCFullYear() === +a
+  );
+}
+
 // Dias de "inicio" até "fim"; undefined se alguma data for inválida ou fim < inicio
 function diasEntre(inicio: string | undefined, fim: string | undefined) {
   const a = diaUTC(inicio);
