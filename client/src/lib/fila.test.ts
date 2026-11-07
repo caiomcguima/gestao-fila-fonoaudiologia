@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Paciente, StatusPaciente } from "@/types";
 import {
   ajusteDeEspera,
+  dataValida,
   diasDeEspera,
   formatarEspera,
   hojeFormatado,
@@ -118,5 +119,26 @@ describe("tempo de espera", () => {
 
   it("formata hoje como DD/MM/AAAA", () => {
     expect(hojeFormatado(hoje)).toBe("27/10/2026");
+  });
+});
+
+describe("data de admissão obrigatória", () => {
+  it("aceita só data completa e real", () => {
+    for (const ok of ["27/10/2026", "29/02/2028", " 01/01/2025 "])
+      expect(dataValida(ok)).toBe(true);
+    for (const ruim of [
+      "",
+      "10/2026",
+      "27/10/26",
+      "31/02/2026",
+      "00/10/2026",
+      "27/13/2026",
+      "29/02/2027",
+    ])
+      expect(dataValida(ruim)).toBe(false);
+  });
+
+  it("a data de hoje sugerida no cadastro é válida", () => {
+    expect(dataValida(hojeFormatado())).toBe(true);
   });
 });

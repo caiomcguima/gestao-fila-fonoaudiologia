@@ -21,7 +21,7 @@ import { Paciente, PROFISSIONAIS, StatusPaciente, STATUS_LIST } from "@/types";
 import { maskCPF, maskCNS, maskData, maskTelefone } from "@/lib/masks";
 import { useEdit } from "@/contexts/EditContext";
 import { toast } from "sonner";
-import { hojeFormatado } from "@/lib/fila";
+import { dataValida, hojeFormatado } from "@/lib/fila";
 
 interface FormularioCadastroProps {
   onAdicionarPaciente: (paciente: Omit<Paciente, "id">) => void;
@@ -36,7 +36,8 @@ export function FormularioCadastro({
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [data, setData] = useState("");
+  // Novo cadastro já vem com a data de hoje (pode ser trocada)
+  const [data, setData] = useState(() => hojeFormatado());
   const [dataNascimento, setDataNascimento] = useState("");
   const [cpf, setCpf] = useState("");
   const [cns, setCns] = useState("");
@@ -67,6 +68,11 @@ export function FormularioCadastro({
   }, [pacienteEmEdicao]);
 
   const validarFormulario = (): boolean => {
+    // Obrigatória em todo novo cadastro; cadastros antigos sem data ainda podem ser editados
+    if ((!modoEdicao || data) && !dataValida(data)) {
+      toast.error("Informe a Data de Admissão (DD/MM/AAAA)");
+      return false;
+    }
     if (diagnostico.length > 180) {
       toast.error("Observações não podem exceder 180 caracteres");
       return false;
@@ -81,7 +87,7 @@ export function FormularioCadastro({
   const limparFormulario = () => {
     setNome("");
     setTelefone("");
-    setData("");
+    setData(hojeFormatado());
     setDataNascimento("");
     setCpf("");
     setCns("");
@@ -179,7 +185,7 @@ export function FormularioCadastro({
         {/* Data de Admissão na fila */}
         <div className="flex flex-col gap-2">
           <Label htmlFor="data" className="font-bold">
-            Data de Admissão
+            Data de Admissão{!modoEdicao && " *"}
           </Label>
           <Input
             id="data"
@@ -188,6 +194,8 @@ export function FormularioCadastro({
             placeholder="DD/MM/YYYY"
             className="h-11 rounded-xl"
             maxLength={10}
+            required={!modoEdicao}
+            aria-required={!modoEdicao}
           />
         </div>
 
