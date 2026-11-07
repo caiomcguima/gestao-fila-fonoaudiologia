@@ -66,32 +66,22 @@ export default function Home() {
   } = useSupabase();
   const { iniciarEdicao } = useEdit();
 
-  const handleAdicionarPaciente = async (paciente: Omit<Paciente, "id">) => {
-    try {
-      await adicionarPaciente({
-        ...paciente,
-        ...ajusteDeEspera(undefined, paciente.status),
-      });
-    } catch (error) {
-      toast.error("Erro ao adicionar paciente");
-      console.error(error);
-    }
-  };
+  // O contexto já mostra o aviso de erro; aqui só repassamos se gravou (true) ou não (false)
+  const handleAdicionarPaciente = (paciente: Omit<Paciente, "id">) =>
+    adicionarPaciente({
+      ...paciente,
+      ...ajusteDeEspera(undefined, paciente.status),
+    });
 
-  const handleAtualizarPaciente = async (
+  const handleAtualizarPaciente = (
     id: string,
     paciente: Omit<Paciente, "id">
   ) => {
-    try {
-      const anterior = pacientes.find(p => p.id === id);
-      await atualizarPaciente(id, {
-        ...paciente,
-        ...ajusteDeEspera(anterior, paciente.status),
-      });
-    } catch (error) {
-      toast.error("Erro ao atualizar paciente");
-      console.error(error);
-    }
+    const anterior = pacientes.find(p => p.id === id);
+    return atualizarPaciente(id, {
+      ...paciente,
+      ...ajusteDeEspera(anterior, paciente.status),
+    });
   };
 
   const handleAtualizarStatus = async (
@@ -100,13 +90,12 @@ export default function Home() {
     dataAlta?: string
   ) => {
     const paciente = pacientes.find(p => p.id === id);
-    if (paciente) {
-      await atualizarPaciente(id, {
-        status: novoStatus,
-        ...(dataAlta && { dataAlta }),
-        ...ajusteDeEspera(paciente, novoStatus),
-      });
-    }
+    if (!paciente) return false;
+    return atualizarPaciente(id, {
+      status: novoStatus,
+      ...(dataAlta && { dataAlta }),
+      ...ajusteDeEspera(paciente, novoStatus),
+    });
   };
 
   const handleEditarPaciente = (paciente: Paciente) => {

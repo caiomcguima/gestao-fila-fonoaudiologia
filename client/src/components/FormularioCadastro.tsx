@@ -24,8 +24,12 @@ import { toast } from "sonner";
 import { dataValida, hojeFormatado } from "@/lib/fila";
 
 interface FormularioCadastroProps {
-  onAdicionarPaciente: (paciente: Omit<Paciente, "id">) => void;
-  onAtualizarPaciente?: (id: string, paciente: Omit<Paciente, "id">) => void;
+  // Devolvem true se gravou; em caso de falha o formulário mantém o que foi digitado
+  onAdicionarPaciente: (paciente: Omit<Paciente, "id">) => Promise<boolean>;
+  onAtualizarPaciente?: (
+    id: string,
+    paciente: Omit<Paciente, "id">
+  ) => Promise<boolean>;
 }
 
 export function FormularioCadastro({
@@ -49,6 +53,7 @@ export function FormularioCadastro({
   const [openProfissional, setOpenProfissional] = useState(false);
   const [openDiagnostico, setOpenDiagnostico] = useState(false);
   const [modoEdicao, setModoEdicao] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (pacienteEmEdicao) {
@@ -100,8 +105,8 @@ export function FormularioCadastro({
     finalizarEdicao();
   };
 
-  const handleGravar = () => {
-    if (!validarFormulario()) return;
+  const handleGravar = async () => {
+    if (salvando || !validarFormulario()) return;
 
     const novoPaciente: Omit<Paciente, "id"> = {
       nome,
@@ -119,15 +124,23 @@ export function FormularioCadastro({
       diagnostico: diagnostico || undefined,
     };
 
-    if (modoEdicao && pacienteEmEdicao && onAtualizarPaciente) {
-      onAtualizarPaciente(pacienteEmEdicao.id, novoPaciente);
-      toast.success("Paciente atualizado com sucesso!");
-    } else {
-      onAdicionarPaciente(novoPaciente);
-      toast.success("Paciente adicionado com sucesso!");
+    const atualizando = modoEdicao && pacienteEmEdicao && onAtualizarPaciente;
+    setSalvando(true);
+    try {
+      const salvou = atualizando
+        ? await onAtualizarPaciente(pacienteEmEdicao.id, novoPaciente)
+        : await onAdicionarPaciente(novoPaciente);
+      // Falhou: o aviso do erro já apareceu; mantém os dados para tentar de novo
+      if (!salvou) return;
+      toast.success(
+        atualizando
+          ? "Paciente atualizado com sucesso!"
+          : "Paciente adicionado com sucesso!"
+      );
+      limparFormulario();
+    } finally {
+      setSalvando(false);
     }
-
-    limparFormulario();
   };
 
   const handleCancelar = () => {
@@ -378,6 +391,7 @@ export function FormularioCadastro({
         {/* Botão Gravar */}
         <Button
           onClick={handleGravar}
+          disabled={salvando}
           className="h-11 rounded-full px-7 font-bold sm:ml-auto"
         >
           {modoEdicao ? "Salvar alterações" : "Adicionar à fila"}
