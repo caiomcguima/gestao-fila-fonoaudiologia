@@ -7,22 +7,24 @@ import React, {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Paciente } from "@/types";
 import { createSupabaseClient } from "@/lib/supabase";
+import { mensagemDeErro } from "@/lib/erroSupabase";
 import { toast } from "sonner";
 
-// Sem isso a falha ficava silenciosa: a tela mudava só neste navegador e o banco não
-const avisarFalha = () =>
-  toast.error("Não foi possível salvar no servidor. A alteração ficou só neste navegador.");
+// Falha ao gravar: mostra a causa e NÃO altera a tela, para ninguém achar que salvou
+const avisarFalha = (error: unknown) =>
+  toast.error(mensagemDeErro(error), { duration: 12000 });
 
 const STORAGE_KEY = "gestao_fila_pacientes";
 
 interface SupabaseContextType {
   pacientes: Paciente[];
-  adicionarPaciente: (paciente: Omit<Paciente, "id">) => Promise<void>;
+  // Cada operação devolve true se gravou e false se falhou (o aviso já foi mostrado)
+  adicionarPaciente: (paciente: Omit<Paciente, "id">) => Promise<boolean>;
   atualizarPaciente: (
     id: string,
     dados: Partial<Paciente>
-  ) => Promise<void>;
-  deletarPaciente: (id: string) => Promise<void>;
+  ) => Promise<boolean>;
+  deletarPaciente: (id: string) => Promise<boolean>;
   isConnected: boolean;
   isLoading: boolean;
 }
@@ -126,72 +128,59 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pacientes, isLoading]);
 
+  // Com Supabase, o estado só muda pela assinatura de tempo real: se o servidor
+  // recusar, a tela continua igual ao banco (nada de alteração "fantasma").
   const adicionarPaciente = async (paciente: Omit<Paciente, "id">) => {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from("pacientes")
-          .insert([{ ...paciente, created_at: new Date().toISOString() }]);
-        if (error) throw error;
-        // O estado é atualizado pela assinatura de tempo real (INSERT)
-      } catch (error) {
-        console.error("Erro ao adicionar paciente no Supabase:", error);
-        avisarFalha();
-        const novo: Paciente = {
-          ...paciente,
-          id: `${Date.now()}-${Math.random()}`,
-        };
-        setPacientes((prev) => [...prev, novo]);
-      }
-    } else {
+    if (!supabase) {
       const novo: Paciente = {
         ...paciente,
         id: `${Date.now()}-${Math.random()}`,
       };
       setPacientes((prev) => [...prev, novo]);
+      return true;
     }
+    const { error } = await supabase
+      .from("pacientes")
+      .insert([{ ...paciente, created_at: new Date().toISOString() }]);
+    if (error) {
+      console.error("Erro ao adicionar paciente no Supabase:", error);
+      avisarFalha(error);
+      return false;
+    }
+    return true;
   };
 
   const atualizarPaciente = async (id: string, dados: Partial<Paciente>) => {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from("pacientes")
-          .update({ ...dados, updated_at: new Date().toISOString() })
-          .eq("id", id);
-        if (error) throw error;
-        // O estado é atualizado pela assinatura de tempo real (UPDATE)
-      } catch (error) {
-        console.error("Erro ao atualizar paciente no Supabase:", error);
-        avisarFalha();
-        setPacientes((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...dados } : p))
-        );
-      }
-    } else {
+    if (!supabase) {
       setPacientes((prev) =>
         prev.map((p) => (p.id === id ? { ...p, ...dados } : p))
       );
+      return true;
     }
+    const { error } = await supabase
+      .from("pacientes")
+      .update({ ...dados, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      console.error("Erro ao atualizar paciente no Supabase:", error);
+      avisarFalha(error);
+      return false;
+    }
+    return true;
   };
 
   const deletarPaciente = async (id: string) => {
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from("pacientes")
-          .delete()
-          .eq("id", id);
-        if (error) throw error;
-        // O estado é atualizado pela assinatura de tempo real (DELETE)
-      } catch (error) {
-        console.error("Erro ao deletar paciente no Supabase:", error);
-        avisarFalha();
-        setPacientes((prev) => prev.filter((p) => p.id !== id));
-      }
-    } else {
+    if (!supabase) {
       setPacientes((prev) => prev.filter((p) => p.id !== id));
+      return true;
     }
+    const { error } = await supabase.from("pacientes").delete().eq("id", id);
+    if (error) {
+      console.error("Erro ao deletar paciente no Supabase:", error);
+      avisarFalha(error);
+      return false;
+    }
+    return true;
   };
 
   return (
