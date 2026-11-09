@@ -72,10 +72,11 @@ const FIXA_NOME = "sticky left-20 z-[1] shadow-[1px_0_0_var(--border)]";
 interface TabelaPacientesProps {
   pacientes: Paciente[];
   onDeletarPaciente: (id: string) => void;
+  // 3º argumento: dado extra pedido na troca (data da alta ou profissional)
   onAtualizarStatus: (
     id: string,
     novoStatus: StatusPaciente,
-    dataAlta?: string
+    dados?: Pick<Paciente, "dataAlta" | "profissional">
   ) => void;
   onExportarPDF: (linhas: LinhaPDF[], titulo: string) => void;
   onEditarPaciente?: (paciente: Paciente) => void;
@@ -96,6 +97,10 @@ export function TabelaPacientes({
   // Alta pede a data antes de salvar
   const [pacienteAlta, setPacienteAlta] = useState<Paciente | null>(null);
   const [dataAlta, setDataAlta] = useState("");
+  // Em Atendimento exige escolher a profissional antes de salvar
+  const [pacienteAtendimento, setPacienteAtendimento] =
+    useState<Paciente | null>(null);
+  const [profissionalEscolhida, setProfissionalEscolhida] = useState("");
 
   const [profissional, setProfissional] = useState(TODAS_PROFISSIONAIS);
 
@@ -163,9 +168,17 @@ export function TabelaPacientes({
   };
 
   const mudarStatus = (id: string, status: StatusPaciente) => {
-    if (status !== "Alta") return onAtualizarStatus(id, status);
-    setDataAlta(hojeFormatado());
-    setPacienteAlta(pacientes.find(p => p.id === id) ?? null);
+    const paciente = pacientes.find(p => p.id === id) ?? null;
+    if (status === "Alta") {
+      setDataAlta(hojeFormatado());
+      setPacienteAlta(paciente);
+    } else if (status === "Em Atendimento") {
+      // Sugere quem já atendeu o paciente antes, mas só salva depois de confirmar
+      setProfissionalEscolhida(paciente?.profissional ?? "");
+      setPacienteAtendimento(paciente);
+    } else {
+      onAtualizarStatus(id, status);
+    }
   };
 
   const confirmarAlta = () => {
@@ -174,8 +187,20 @@ export function TabelaPacientes({
       toast.error("Informe a data da alta (DD/MM/AAAA)");
       return;
     }
-    onAtualizarStatus(pacienteAlta.id, "Alta", dataAlta);
+    onAtualizarStatus(pacienteAlta.id, "Alta", { dataAlta });
     setPacienteAlta(null);
+  };
+
+  const confirmarAtendimento = () => {
+    if (!pacienteAtendimento) return;
+    if (!profissionalEscolhida) {
+      toast.error("Escolha a fonoaudióloga que vai atender");
+      return;
+    }
+    onAtualizarStatus(pacienteAtendimento.id, "Em Atendimento", {
+      profissional: profissionalEscolhida,
+    });
+    setPacienteAtendimento(null);
   };
 
   const exportar = () =>
@@ -447,6 +472,44 @@ export function TabelaPacientes({
           </div>
           <Button onClick={confirmarAlta} className="w-full">
             Confirmar alta
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!pacienteAtendimento}
+        onOpenChange={aberto => !aberto && setPacienteAtendimento(null)}
+      >
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Atendimento de {pacienteAtendimento?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="profissionalAtendimento" className="font-bold">
+              Fonoaudióloga *
+            </Label>
+            <Select
+              value={profissionalEscolhida}
+              onValueChange={setProfissionalEscolhida}
+            >
+              <SelectTrigger
+                id="profissionalAtendimento"
+                aria-required
+                className="h-11 w-full rounded-xl"
+              >
+                <SelectValue placeholder="Selecionar fonoaudióloga" />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoesProfissional.map(nome => (
+                  <SelectItem key={nome} value={nome}>
+                    {nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={confirmarAtendimento} className="w-full">
+            Confirmar atendimento
           </Button>
         </DialogContent>
       </Dialog>
