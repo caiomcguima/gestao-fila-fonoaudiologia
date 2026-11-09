@@ -87,13 +87,13 @@ export default function Home() {
   const handleAtualizarStatus = async (
     id: string,
     novoStatus: StatusPaciente,
-    dataAlta?: string
+    dados?: Pick<Paciente, "dataAlta" | "profissional">
   ) => {
     const paciente = pacientes.find(p => p.id === id);
     if (!paciente) return false;
     return atualizarPaciente(id, {
       status: novoStatus,
-      ...(dataAlta && { dataAlta }),
+      ...dados,
       ...ajusteDeEspera(paciente, novoStatus),
     });
   };
